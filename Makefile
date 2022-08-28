@@ -13,6 +13,13 @@ download: ## Download alpine image and headless bootstrap into the bin/ folder
 clear: ## Remove downloads from bin/downloads
 	@rm bin/download/*
 
+.PHONY: install
+install: download ## Remove downloads from bin/downloads
+	@echo -n "Copying alpine linux files"
+	@tar -xzf bin/download/`echo ${ALPINE_URL} | rev | cut -d/ -f 1 | rev` -C $(path)  --checkpoint=1000 --checkpoint-action=dot && echo " done"
+	@echo -n "Copying headless bootstrap files......"
+	@cp bin/download/`echo ${HEADLESS_BOOTSTRAP_URL} | rev | cut -d/ -f 1 | rev` $(path) && echo " done"
+
 
 .PHONY: help
 help: ## Display this help
