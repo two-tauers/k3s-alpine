@@ -1,0 +1,31 @@
+---
+- hosts: all
+  become: true
+  gather_facts: false
+  pre_tasks:
+  - name: Ensure python is installed
+    ansible.builtin.raw: |
+      cat > /etc/apk/repositories << EOF; $(echo)
+      http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/
+      http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/
+      http://dl-cdn.alpinelinux.org/alpine/edge/testing/
+      EOF
+      apk update
+      apk add python3
+    args:
+      executable: /bin/sh
+    register: install
+    changed_when: "'Installing python3' in install.stdout"
+  roles:
+    - role: users
+  vars:
+    ansible_ssh_user: root
+    ansible_ssh_common_args: >
+      -o StrictHostKeyChecking=no
+      -o PreferredAuthentications=password
+
+- hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - role: ping

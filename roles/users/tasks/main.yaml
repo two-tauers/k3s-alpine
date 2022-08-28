@@ -1,0 +1,80 @@
+---
+- name: Install sudo
+  ansible.builtin.package:
+    name: sudo
+    state: present
+
+# for some reason ansible's "stat" function does not find the keys
+# key_stat.results[i].stdout will be "0" if there is no key, otherwise "1"
+- name: Check if the ssh keys already exist locally
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  ansible.builtin.shell: |
+    set -o pipefail && ls -l {{ item.key_path }} 2>/dev/null | wc -l
+  args:
+    executable: /bin/bash
+  with_items: "{{ users }}"
+  register: key_stat
+  loop_control:
+    label: "{{ item.key_path }}"
+
+- name: Generate missing ssh keys
+  delegate_to: localhost
+  become: false
+  ansible.builtin.command: |
+    ssh-keygen -q -t ed25519 -f {{ item.item.key_path }} -C "" -N ""
+  args:
+    creates: "{{ item.item.key_path }}"
+  with_items: "{{ key_stat.results }}"
+  when: item.stdout == "0"
+  loop_control:
+    label: "{{ item.item.key_path }}"
+
+- name: Create users
+  ansible.builtin.user:
+    name: "{{ item.username }}"
+    state: present
+    create_home: true
+    shell: /bin/sh
+    password_lock: false
+  with_items: "{{ users }}"
+  loop_control:
+    label: "{{ item.username }}"
+
+- name: Add users to sudoers
+  become: true
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ item.username }}"
+    content: "{{ item.username }}  ALL=(ALL)  NOPASSWD: ALL"
+    mode: preserve
+  with_items: "{{ users }}"
+  when: item.sudoer
+  loop_control:
+    label: "{{ item.username }}"
+
+- name: Copy public key to the hosts
+  ansible.posix.authorized_key:
+    user: "{{ item.username }}"
+    key: "{{ lookup('file', '{{ item.key_path }}.pub') }}"
+    state: present
+  with_items: "{{ users }}"
+  loop_control:
+    label: "{{ item.key_path }}"
+
+- name: Configure sshd
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    backup: true
+    owner: '0'
+    group: '0'
+    mode: 0644
+    validate: '/usr/sbin/sshd -T -f %s'
+  notify:
+    - Restart sshd service
+
+- name: Disable password for the default user
+  ansible.builtin.user:
+    name: root
+    password_lock: true
