@@ -13,14 +13,12 @@ all:
     control_plane:
     workers:
   vars:
-    ansible_ssh_user: ansible
+    ansible_user: ansible
+    ansible_ssh_user: "{{ ansible_user }}"
     ansible_ssh_private_key_file:
       "{{ lookup('env','HOME') }}/.ssh/two-tauers-ansible"
 
     users:
       - username: ansible
         key_path: "{{ ansible_ssh_private_key_file }}"
-        sudoer: true
-      - username: tt
-        key_path: "{{ lookup('env', 'HOME') }}/.ssh/id_ed25519"
         sudoer: true
