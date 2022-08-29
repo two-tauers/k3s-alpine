@@ -1,3 +1,4 @@
 ---
-- ping:
+- name: PING
+  ping:
   changed_when: false

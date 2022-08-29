@@ -18,6 +18,7 @@
     executable: /bin/sh
   register: repo
   failed_when: "'OK' not in repo.stdout"
+  changed_when: "'OK' in repo.stdout"
 
 - name: Install python
   ansible.builtin.raw: apk add python3 && which python3
