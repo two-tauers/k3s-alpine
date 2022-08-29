@@ -5,7 +5,6 @@
   pre_tasks:
   - ansible.builtin.include_role:
       name: python
-      
   roles:
     - role: users
   vars:

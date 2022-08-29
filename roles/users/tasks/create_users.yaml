@@ -2,7 +2,7 @@
 - name: Use the default root user
   ansible.builtin.set_fact:
     ansible_ssh_user: root
-    
+
 - name: Install sudo
   ansible.builtin.package:
     name: sudo
