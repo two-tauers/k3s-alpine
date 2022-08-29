@@ -15,10 +15,10 @@ Do this for all the nodes of the cluster.
 
 2. Partition the boot drive
 
-    Get the device name by running `lsblk` and run `parted <DEVICE>`, e.g. `parted /dev/sdb`
+    Get the device name by running `lsblk` and run `sudo parted <DEVICE>`, e.g. `sudo parted /dev/sdb`
     In parted:
 
-    - `mkpart primary FAT32 1MB 100%` to create the full-drive partition
+    - `mkpart primary FAT32 2048 100%` to create the full-drive partition
     - `set 1 boot on` to mark is as a boot drive
     - `quit` to exit parted
 
@@ -30,7 +30,7 @@ Do this for all the nodes of the cluster.
 
 1. Mount the drive
 
-    Create the folder and mount the drive by running `sudo mkdir /mnt/sd && sudo mount /dev/sdb1 /mnt/sd`
+    Create the folder and mount the drive by running `sudo mkdir -p /mnt/sd && sudo mount /dev/sdb1 /mnt/sd`
 
 2. Run `sudo make install path=/mnt/sd` to copy the files
 
