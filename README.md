@@ -11,7 +11,8 @@ Do this for all the nodes of the cluster.
 
 1. Insert the SD card and unmount any drives
 
-    To see the list of mounts: `lsblk`
+    To see the list of mounts: `lsblk`.
+    If the device already contains a partition and it's mounted, unmount it before proceeding (`sudo umount <mountpoint>`)
 
 2. Partition the boot drive
 
