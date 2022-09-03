@@ -2,16 +2,9 @@
 - hosts: all
   become: true
   gather_facts: false
-  pre_tasks:
-  - ansible.builtin.include_role:
-      name: python
   roles:
+    - role: python
     - role: users
-  vars:
-    ansible_ssh_user: root
-    ansible_ssh_common_args: >
-      -o StrictHostKeyChecking=no
-      -o PreferredAuthentications=password
 
 - hosts: all
   become: true

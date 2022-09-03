@@ -1,0 +1,29 @@
+---
+- name: Get alpine version
+  ansible.builtin.raw: cut -d'.' -f1,2 /etc/alpine-release
+  args:
+    executable: /bin/sh
+  register: version
+  changed_when: false
+
+- name: Add apk repositories
+  ansible.builtin.raw: |
+    cp /etc/apk/repositories /etc/apk/repositories_backup
+    cat > /etc/apk/repositories << EOF; $(echo)
+    http://dl-cdn.alpinelinux.org/alpine/v{{ version.stdout | trim }}/main/
+    http://dl-cdn.alpinelinux.org/alpine/v{{ version.stdout | trim }}/community/
+    EOF
+    apk update
+  args:
+    executable: /bin/sh
+  register: repo
+  failed_when: "'OK' not in repo.stdout"
+  changed_when: "'OK' in repo.stdout"
+
+- name: Install python
+  ansible.builtin.raw: apk add python3 && which python3
+  args:
+    executable: /bin/sh
+  register: install
+  failed_when: "'/usr/bin/python3' not in install.stdout"
+  changed_when: "'Installing python3' in install.stdout"
