@@ -3,10 +3,13 @@
   ansible.builtin.set_fact:
     ansible_ssh_user: root
 
-- name: Install sudo
+- name: Install required packages
   ansible.builtin.package:
-    name: sudo
+    name: "{{ item }}"
     state: present
+  with_items:
+    - sudo
+    - openssh-server-pam
 
 # for some reason ansible's "stat" function does not find the keys
 # key_stat.results[i].stdout will be "0" if there is no key, otherwise "1"
@@ -65,6 +68,9 @@
   with_items: "{{ users }}"
   loop_control:
     label: "{{ item.key_path }}"
+
+- name: Generate host keys
+  ansible.builtin.command: ssh-keygen -A
 
 - name: Configure sshd
   ansible.builtin.template:
