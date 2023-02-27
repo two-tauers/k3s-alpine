@@ -5,6 +5,9 @@ exec 1>/dev/console 2>&1
 
 mkdir /tmp/.trash
 ovlpath=$( find /media -type d -path '*/.*' -prune -o -type f -name *.apkovl.tar.gz -exec dirname {} \; | head -1 )
+logger -st ${0##*/} "ovlpath = $ovlpath"
+logger -st ${0##*/} "ovlpath contents are $(ls -lash $ovlpath)"
+
 
 logger -st ${0##*/} "Setting up network interfaces..."
 for dev in $(ls /sys/class/net)
@@ -27,15 +30,15 @@ do
 	esac
 done
 
-echo "Set up network interfaces:"
+logger -st ${0##*/} "Set up network interfaces:"
 cat /etc/network/interfaces
 
-cp "${ovlpath}/hostname" /etc/hostname
+# cp "${ovlpath}/hostname" /etc/hostname
 hostname -F /etc/hostname
 rc-service networking start
 
-
-## Set up packages
+## Set up package repositories
+logger -st ${0##*/} "Set up package repositories"
 cp /etc/apk/repositories /etc/apk/repositories_backup
 echo "http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/" >> /etc/apk/repositories
 echo "http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/" >> /etc/apk/repositories
@@ -47,43 +50,162 @@ apk add sudo > /root/sudo.log
 for username in $( ls /etc/pubkeys )
 do
     logger -st ${0##*/} "Creating user $username..."
-    adduser $username --disabled-password
+    adduser -D $username -D
     mkdir -p /home/$username/.ssh
-    cat /etc/pubkeys/$username >> /home/$username/.ssh/authorized_keys
-    echo "tt  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/tt
+    mv /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
+	chown -R $username:$username /home/$username
+	chmod 700 /home/$username/.ssh
+	chmod 600 /home/$username/.ssh/authorized_keys
+    echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
+	logger -st ${0##*/} "    Sudoers file: $(cat /etc/sudoers.d/$username)"
+    logger -st ${0##*/} "    Created user $username"
+    logger -st ${0##*/} "    Authorized key: $(cat /home/$username/.ssh/authorized_keys)"
 done
 
 
+## Set up SSH
+logger -st ${0##*/} "Installing openssh"
+apk add openssh openssh-server-pam
 
-
-## Setup temporary SSH server (root login, no password)
-## we use some bundled keys to avoid generation at boot and save time
-## bundled temporary keys are moved in /tmp so they won't be stored
-## within permanent config later (new ones will then be generated)
-apk add openssh
-
+logger -st ${0##*/} "Setting up up sshd_config"
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.orig
-cat <<-EOF >> /etc/ssh/sshd_config
-		AuthorizedKeysFile      .ssh/authorized_keys
-		PermitEmptyPasswords no
-		PasswordAuthentication no
-		KbdInteractiveAuthentication no
-		AllowTcpForwarding no
-		GatewayPorts no
-		X11Forwarding no
-		UsePAM yes
-		Subsystem       sftp    /usr/lib/ssh/sftp-server
+# mv /etc/sshd_config /etc/ssh/sshd_config
+
+
+cat <<-EOF > /etc/ssh/sshd_config
+	# This is the sshd server system-wide configuration file.  See
+	# sshd_config(5) for more information.
+
+	# This sshd was compiled with PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+	# The strategy used for options in the default sshd_config shipped with
+	# OpenSSH is to specify options with their default value where
+	# possible, but leave them commented.  Uncommented options override the
+	# default value.
+
+	Include /etc/ssh/sshd_config.d/*.conf
+
+	#Port 22
+	#AddressFamily any
+	#ListenAddress 0.0.0.0
+	#ListenAddress ::
+
+	#HostKey /etc/ssh/ssh_host_rsa_key
+	#HostKey /etc/ssh/ssh_host_ecdsa_key
+	#HostKey /etc/ssh/ssh_host_ed25519_key
+
+	# Ciphers and keying
+	#RekeyLimit default none
+
+	# Logging
+	#SyslogFacility AUTH
+	#LogLevel INFO
+
+	# Authentication:
+
+	#LoginGraceTime 2m
+	#PermitRootLogin prohibit-password
+	#StrictModes yes
+	#MaxAuthTries 6
+	#MaxSessions 10
+
+	PubkeyAuthentication yes
+
+	# Expect .ssh/authorized_keys2 to be disregarded by default in future.
+	#AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2
+
+	#AuthorizedPrincipalsFile none
+
+	#AuthorizedKeysCommand none
+	#AuthorizedKeysCommandUser nobody
+
+	# For this to work you will also need host keys in /etc/ssh/ssh_known_hosts
+	#HostbasedAuthentication no
+	# Change to yes if you don't trust ~/.ssh/known_hosts for
+	# HostbasedAuthentication
+	#IgnoreUserKnownHosts no
+	# Don't read the user's ~/.rhosts and ~/.shosts files
+	#IgnoreRhosts yes
+
+	# To disable tunneled clear text passwords, change to no here!
+	PasswordAuthentication no
+	#PermitEmptyPasswords no
+
+	# Change to yes to enable challenge-response passwords (beware issues with
+	# some PAM modules and threads)
+	ChallengeResponseAuthentication no
+
+	# Kerberos options
+	#KerberosAuthentication no
+	#KerberosOrLocalPasswd yes
+	#KerberosTicketCleanup yes
+	#KerberosGetAFSToken no
+
+	# GSSAPI options
+	#GSSAPIAuthentication no
+	#GSSAPICleanupCredentials yes
+	#GSSAPIStrictAcceptorCheck yes
+	#GSSAPIKeyExchange no
+
+	# Set this to 'yes' to enable PAM authentication, account processing,
+	# and session processing. If this is enabled, PAM authentication will
+	# be allowed through the ChallengeResponseAuthentication and
+	# PasswordAuthentication.  Depending on your PAM configuration,
+	# PAM authentication via ChallengeResponseAuthentication may bypass
+	# the setting of "PermitRootLogin without-password".
+	# If you just want the PAM account and session checks to run without
+	# PAM authentication, then enable this but set PasswordAuthentication
+	# and ChallengeResponseAuthentication to 'no'.
+	UsePAM yes
+
+	#AllowAgentForwarding yes
+	#AllowTcpForwarding yes
+	#GatewayPorts no
+	X11Forwarding yes
+	#X11DisplayOffset 10
+	#X11UseLocalhost yes
+	#PermitTTY yes
+	PrintMotd no
+	#PrintLastLog yes
+	#TCPKeepAlive yes
+	#PermitUserEnvironment no
+	#Compression delayed
+	#ClientAliveInterval 0
+	#ClientAliveCountMax 3
+	#UseDNS no
+	#PidFile /var/run/sshd.pid
+	#MaxStartups 10:30:100
+	#PermitTunnel no
+	#ChrootDirectory none
+	#VersionAddendum none
+
+	# no default banner path
+	#Banner none
+
+	# Allow client to pass locale environment variables
+	AcceptEnv LANG LC_*
+
+	# override default of no subsystems
+	Subsystem sftp internal-sftp
+
+	# Example of overriding settings on a per-user basis
+	#Match User anoncvs
+	#       X11Forwarding no
+	#       AllowTcpForwarding no
+	#       PermitTTY no
+	#       ForceCommand cvs server
 	EOF
+
+ssh-keygen -A
 
 rc-service sshd start
 /etc/init.d/sshd start
 
 ## Prep for final post-cleanup
+logger -st ${0##*/} "Cleaning up"
 cat <<-EOF > /tmp/.trash/post-cleanup
 	#!/bin/sh
 	logger -st ${0##*/} "Cleaning-up..."
-	# mv /etc/ssh/sshd_config.orig /etc/ssh/sshd_config
-	# mv /etc/conf.d/sshd.orig /etc/conf.d/sshd
 	rm /etc/modules-load.d/g_ether.conf
 	rm /etc/modprobe.d/g_ether.conf
 	rc-update del local default
@@ -94,4 +216,3 @@ cat <<-EOF > /tmp/.trash/post-cleanup
 
 chmod +x /tmp/.trash/post-cleanup
 exec /tmp/.trash/post-cleanup
-
