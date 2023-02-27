@@ -5,9 +5,6 @@ exec 1>/dev/console 2>&1
 
 mkdir /tmp/.trash
 ovlpath=$( find /media -type d -path '*/.*' -prune -o -type f -name *.apkovl.tar.gz -exec dirname {} \; | head -1 )
-logger -st ${0##*/} "ovlpath = $ovlpath"
-logger -st ${0##*/} "ovlpath contents are $(ls -lash $ovlpath)"
-
 
 logger -st ${0##*/} "Setting up network interfaces..."
 for dev in $(ls /sys/class/net)
@@ -202,12 +199,11 @@ rc-service sshd start
 /etc/init.d/sshd start
 
 ## Prep for final post-cleanup
-logger -st ${0##*/} "Cleaning up"
 cat <<-EOF > /tmp/.trash/post-cleanup
 	#!/bin/sh
 	logger -st ${0##*/} "Cleaning-up..."
-	rm /etc/modules-load.d/g_ether.conf
-	rm /etc/modprobe.d/g_ether.conf
+	# rm /etc/modules-load.d/g_ether.conf
+	# rm /etc/modprobe.d/g_ether.conf
 	rc-update del local default
 	rm /etc/local.d/headless.start
 
