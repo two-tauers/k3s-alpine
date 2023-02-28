@@ -1,89 +1,101 @@
 #!/bin/sh
 
-# Redirect stdout and errors to console as rc.local does not log anything
-exec 1>/dev/console 2>&1
+main () {
+	# Redirect stdout and errors to console as rc.local does not log anything
+	exec 1>/dev/console 2>&1
+	mkdir /tmp/.trash
+	ovlpath=$( find /media -type d -path '*/.*' -prune -o -type f -name *.apkovl.tar.gz -exec dirname {} \; | head -1 )
+	setup_networking
+	setup_repositories
+	setup_ssh
+	create_users
+}
 
-mkdir /tmp/.trash
-ovlpath=$( find /media -type d -path '*/.*' -prune -o -type f -name *.apkovl.tar.gz -exec dirname {} \; | head -1 )
+setup_networking () {
+	logger -st ${0##*/} "Setting up network interfaces..."
+	for dev in $(ls /sys/class/net)
+	do
+		case ${dev%%[0-9]*} in
+			lo)
+					cat <<-EOF >> /etc/network/interfaces
+					auto $dev
+					iface $dev inet loopback
 
-logger -st ${0##*/} "Setting up network interfaces..."
-for dev in $(ls /sys/class/net)
-do
-	case ${dev%%[0-9]*} in
-		lo)
-				cat <<-EOF >> /etc/network/interfaces
-				auto $dev
-				iface $dev inet loopback
+					EOF
+					;;
+			eth)
+					cat <<-EOF >> /etc/network/interfaces
+					auto $dev
+					iface $dev inet dhcp
 
-				EOF
-				;;
-		eth)
-				cat <<-EOF >> /etc/network/interfaces
-				auto $dev
-				iface $dev inet dhcp
+					EOF
+					;;
+		esac
+	done
 
-				EOF
-				;;
-	esac
-done
+	logger -st ${0##*/} "Set up network interfaces:"
+	cat /etc/network/interfaces
 
-logger -st ${0##*/} "Set up network interfaces:"
-cat /etc/network/interfaces
+	hostname -F /etc/hostname
+	rc-service networking start
+}
 
-# cp "${ovlpath}/hostname" /etc/hostname
-hostname -F /etc/hostname
-rc-service networking start
+setup_repositories () {
+	## Set up package repositories
+	logger -st ${0##*/} "Set up package repositories"
+	cp /etc/apk/repositories /etc/apk/repositories_backup
+	echo "http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/" >> /etc/apk/repositories
+	echo "http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/" >> /etc/apk/repositories
+	apk update
+}
 
-## Set up package repositories
-logger -st ${0##*/} "Set up package repositories"
-cp /etc/apk/repositories /etc/apk/repositories_backup
-echo "http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/main/" >> /etc/apk/repositories
-echo "http://dl-cdn.alpinelinux.org/alpine/v$(cut -d'.' -f1,2 /etc/alpine-release)/community/" >> /etc/apk/repositories
-apk update
+setup_ssh () {
+	## Set up SSH
+	logger -st ${0##*/} "Installing openssh"
+	apk add openssh openssh-server-pam
 
-## Create users with SSH access
-logger -st ${0##*/} "Installing sudo package..."
-apk add sudo > /root/sudo.log
-for username in $( ls /etc/pubkeys )
-do
-    logger -st ${0##*/} "Creating user $username..."
-    adduser -D $username -D
-    mkdir -p /home/$username/.ssh
-    mv /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
-	chown -R $username:$username /home/$username
-	chmod 700 /home/$username/.ssh
-	chmod 600 /home/$username/.ssh/authorized_keys
-    echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
-	logger -st ${0##*/} "    Sudoers file: $(cat /etc/sudoers.d/$username)"
-    logger -st ${0##*/} "    Created user $username"
-    logger -st ${0##*/} "    Authorized key: $(cat /home/$username/.ssh/authorized_keys)"
-done
+	logger -st ${0##*/} "Setting up up sshd"
+	mv /etc/sshd_config /etc/ssh/sshd_config
+	ssh-keygen -A
+	rc-service sshd start
+	/etc/init.d/sshd start
+}
 
+create_users () {
+	## Create users with SSH access
+	logger -st ${0##*/} "Installing sudo package..."
+	apk add sudo > /root/sudo.log
+	for username in $( ls /etc/pubkeys )
+	do
+		logger -st ${0##*/} "Creating user $username..."
+		adduser -D $username -D
+		mkdir -p /home/$username/.ssh
+		mv /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
+		chown -R $username:$username /home/$username
+		chmod 700 /home/$username/.ssh
+		chmod 600 /home/$username/.ssh/authorized_keys
+		echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
+		logger -st ${0##*/} "    Sudoers file: $(cat /etc/sudoers.d/$username)"
+		logger -st ${0##*/} "    Created user $username"
+		logger -st ${0##*/} "    Authorized key: $(cat /home/$username/.ssh/authorized_keys)"
+	done
+}
 
-## Set up SSH
-logger -st ${0##*/} "Installing openssh"
-apk add openssh openssh-server-pam
+post_cleanup () {
+	## Prep for final post-cleanup
+	cat <<-EOF > /tmp/.trash/post-cleanup
+		#!/bin/sh
+		logger -st ${0##*/} "Cleaning-up..."
+		# rm /etc/modules-load.d/g_ether.conf
+		# rm /etc/modprobe.d/g_ether.conf
+		rc-update del local default
+		rm /etc/local.d/headless.start
 
-logger -st ${0##*/} "Setting up up sshd_config"
-# cp /etc/ssh/sshd_config /etc/ssh/sshd_config.orig
-mv /etc/sshd_config /etc/ssh/sshd_config
+		logger -st ${0##*/} "Done !!"
+		EOF
 
-ssh-keygen -A
+	chmod +x /tmp/.trash/post-cleanup
+	exec /tmp/.trash/post-cleanup
+}
 
-rc-service sshd start
-/etc/init.d/sshd start
-
-## Prep for final post-cleanup
-cat <<-EOF > /tmp/.trash/post-cleanup
-	#!/bin/sh
-	logger -st ${0##*/} "Cleaning-up..."
-	# rm /etc/modules-load.d/g_ether.conf
-	# rm /etc/modprobe.d/g_ether.conf
-	rc-update del local default
-	rm /etc/local.d/headless.start
-
-	logger -st ${0##*/} "Done !!"
-	EOF
-
-chmod +x /tmp/.trash/post-cleanup
-exec /tmp/.trash/post-cleanup
+main; exit
