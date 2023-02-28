@@ -7,4 +7,4 @@ echo $HOSTNAME > overlay/etc/hostname
 
 echo "Packaging apkovl in a tarball"
 chmod +x overlay/etc/local.d/headless.start
-tar -czvf bootstrap.apkovl.tar.gz -C overlay etc --owner=0 --group=0 --checkpoint=1000 --checkpoint-action=dot
+tar -czvf bin/overlay.apkovl.tar.gz -C overlay etc --owner=0 --group=0 --checkpoint=1000 --checkpoint-action=dot

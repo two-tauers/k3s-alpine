@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-ALPINE_URL = https://dl-cdn.alpinelinux.org/alpine/v3.16/releases/aarch64/alpine-rpi-3.16.2-aarch64.tar.gz
+ALPINE_FILENAME:=`cat alpine-url | grep -o '[^/]*.tar.gz'`
 
 check_defined = \
     $(strip $(foreach 1,$1, \
@@ -9,13 +9,28 @@ __check_defined = \
     $(if $(value $1),, \
       $(error Undefined $1$(if $2, ($2))))
 
-.PHONY: download
-download: ## Download alpine image and headless bootstrap into the bin/ folder
-	@sh bin/download.sh ${ALPINE_URL}
+.PHONY: download-alpine
+download-alpine: ## Download alpine image into the bin/ folder
+	@echo "Downloading alpine"
+	@sh scripts/download-alpine.sh
 
-.PHONY: clear
-clear: ## Remove downloads from bin/downloads
-	@rm bin/download/*
+.PHONY: build-overlay
+build-overlay: ## Build bootstrap overlay
+	$(call check_defined, name)
+	@echo "Building alkovl"
+	@sh scripts/build-overlay.sh ${name}
+
+.PHONY: clean
+clean: ## Remove downloads from bin/downloads
+	@rm -r bin/*
+
+.PHONY: install
+install: download-alpine build-overlay ## Install the OS onto a drive, usage: make install path=/mnt/sd
+	$(call check_defined, path)
+	@echo -n "Copying contents of ${ALPINE_FILENAME}"
+	@tar -xzf bin/${ALPINE_FILENAME} -C $(path) --checkpoint=1000 --checkpoint-action=dot && echo " done"
+	@echo -n "Copying bootstrap file."
+	@cp bin/overlay.apkovl.tar.gz $(path) && echo " done"
 
 .PHONY: boot
 boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
@@ -23,8 +38,6 @@ boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	$(call check_defined, name)
 	@lsblk ${drive}
 	@echo -n "This will ERASE ALL DATA ON ${drive}. Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
-	#@echo "Deleting existing partitions"
-	#@wipefs -a ${drive}
 	@echo "Partitioning ${drive}"
 	@parted ${drive}  rm 1  mkpart primary FAT32 2048 100%  set 1 boot on  print
 	@sleep 2
@@ -36,19 +49,6 @@ boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	@$(MAKE) install path=/mnt/sd name=${name}
 	@echo "Unmounting ${drive}"
 	@sudo umount /mnt/sd
-
-.PHONY: install
-install: download build ## Install the OS onto a drive, usage: make install path=/mnt/sd
-	@echo -n "Copying alpine linux files"
-	@tar -xzf bin/download/`echo ${ALPINE_URL} | rev | cut -d/ -f 1 | rev` -C $(path) --checkpoint=1000 --checkpoint-action=dot && echo " done"
-	@echo -n "Copying bootstrap file."
-	@cp bootstrap/bootstrap.apkovl.tar.gz $(path) && echo " done"
-
-.PHONY: build
-build: ## Build bootstrap overlay
-	@echo "Building alkovl"
-	@cd bootstrap && sh build.sh ${name}
-
 
 .PHONY: help
 help: ## Display this help
