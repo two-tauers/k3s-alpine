@@ -7,6 +7,7 @@ main () {
 	ovlpath=$( find /media -type d -path '*/.*' -prune -o -type f -name *.apkovl.tar.gz -exec dirname {} \; | head -1 )
 	setup_networking
 	setup_repositories
+	set_time
 	setup_ssh
 	create_users
 }
@@ -81,6 +82,16 @@ create_users () {
 	done
 }
 
+set_time () {
+	logger -st ${0##*/} "Setting time"
+	ntpd -d -q -n -p uk.pool.ntp.org
+	cat <<-EOF > /etc/periodic/daily/ntpd.sh
+		#!/bin/sh
+		ntpd -d -q -n -p uk.pool.ntp.org
+		EOF
+	chmod +x /etc/periodic/daily/ntpd.sh
+}
+
 post_cleanup () {
 	## Prep for final post-cleanup
 	cat <<-EOF > /tmp/.trash/post-cleanup
@@ -93,7 +104,6 @@ post_cleanup () {
 
 		logger -st ${0##*/} "Done !!"
 		EOF
-
 	chmod +x /tmp/.trash/post-cleanup
 	exec /tmp/.trash/post-cleanup
 }
