@@ -12,6 +12,7 @@ main () {
 	set_time
 	setup_ssh
 	create_users
+	install_k3s
 }
 
 setup_networking () {
@@ -102,6 +103,19 @@ setup_cgroups () {
 	logger -st ${0##*/} "Configuring cgroups"
 	apk add cgroup-tools
 	rc-update add cgroups
+}
+
+install_k3s () {
+	logger -st ${0##*/} "Installing k3s"
+	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.24.8+k3s1 sh -
+	rc-service cgroups start # ensure the cgroups service is running
+	logger -st ${0##*/} "Waiting for the server to be up"
+	sleep 5
+	while [[ "$(k3s kubectl get --raw='/readyz?verbose' | grep -v '[+]')" != "readyz check passed" ]]; do sleep 2; done
+	k3s kubectl get --raw='/readyz?verbose'
+	logger -st ${0##*/} "Waiting for the node to be ready"
+	k3s kubectl wait --for=condition=Ready node $(cat /etc/hostname) --timeout=600s
+	k3s kubectl get nodes
 }
 
 post_cleanup () {
