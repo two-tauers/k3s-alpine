@@ -22,5 +22,12 @@ ALPINE_TAR_PATH=$1
 OVERLAY_TAR_PATH=$2
 INSTALL_PATH=$3
 
-tar -xzvf $ALPINE_TAR_PATH -C $INSTALL_PATH
-cp $OVERLAY_TAR_PATH $INSTALL_PATH
+echo -n "Copying contents of ${ALPINE_TAR_PATH}"
+tar -xzf $ALPINE_TAR_PATH -C $INSTALL_PATH --checkpoint=1000 --checkpoint-action=dot && echo " done"
+echo -n "Copying contents of ${OVERLAY_TAR_PATH}..."
+cp $OVERLAY_TAR_PATH $INSTALL_PATH && echo " done"
+
+echo -n "Copying usercfg.txt..."
+cp boot/usercfg.txt $INSTALL_PATH && echo " done"
+echo -n "Copying cmdline.txt..."
+cp boot/cmdline.txt $INSTALL_PATH && echo " done"

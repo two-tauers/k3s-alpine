@@ -27,10 +27,9 @@ clean: ## Remove downloads from bin/downloads
 .PHONY: install
 install: download-alpine build-overlay ## Install the OS onto a drive, usage: make install path=/mnt/sd
 	$(call check_defined, path)
-	@echo -n "Copying contents of ${ALPINE_FILENAME}"
-	@tar -xzf bin/${ALPINE_FILENAME} -C $(path) --checkpoint=1000 --checkpoint-action=dot && echo " done"
-	@echo -n "Copying bootstrap file."
-	@cp bin/overlay.apkovl.tar.gz $(path) && echo " done"
+	$(call check_defined, name)
+	@echo "Installing Alpine onto ${path}"
+	@sh scripts/install.sh bin/${ALPINE_FILENAME} bin/overlay.apkovl.tar.gz ${path}
 
 .PHONY: boot
 boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
