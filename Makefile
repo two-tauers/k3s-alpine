@@ -14,18 +14,24 @@ download-alpine: ## Download alpine image into the bin/ folder
 	@echo "Downloading alpine"
 	@sh scripts/download-alpine.sh
 
+.PHONY: download-k3s
+download-k3s: ## Download k3s binary and the install script into the bin/ folder
+	@echo "Downloading the k3s binary"
+	@sh scripts/download-k3s.sh
+
 .PHONY: build-overlay
 build-overlay: ## Build bootstrap overlay
 	$(call check_defined, name)
+	$(call check_defined, exec)
 	@echo "Building alkovl"
-	@sh scripts/build-overlay.sh ${name}
+	@sh scripts/build-overlay.sh ${name} ${exec}
 
 .PHONY: clean
-clean: ## Remove downloads from bin/downloads
+clean: ## Remove all files from bin/
 	@rm -r bin/*
 
 .PHONY: install
-install: download-alpine build-overlay ## Install the OS onto a drive, usage: make install path=/mnt/sd
+install: download-alpine download-k3s build-overlay ## Install the OS onto a drive, usage: make install path=/mnt/sd
 	$(call check_defined, path)
 	$(call check_defined, name)
 	@echo "Installing Alpine onto ${path}"
@@ -35,19 +41,22 @@ install: download-alpine build-overlay ## Install the OS onto a drive, usage: ma
 boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	$(call check_defined, drive)
 	$(call check_defined, name)
+	$(call check_defined, exec)
 	@lsblk ${drive}
 	@echo -n "This will ERASE ALL DATA ON ${drive}. Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
 	@echo "Partitioning ${drive}"
-	@parted ${drive}  rm 1  mkpart primary FAT32 2048 100%  set 1 boot on  print
+	@parted ${drive}  rm 1  rm 2  mkpart primary FAT32 1M 1024M  mkpart primary FAT32 1024M 100%  set 1 boot on  print
 	@sleep 2
-	@echo "Formatting ${drive}"
+	@echo "Formatting ${drive}1"
 	@mkfs.fat ${drive}1
+	@echo "Formatting ${drive}2"
+	@mkfs.ext4 ${drive}2
 	@echo "Mounting ${drive}"
 	@mount ${drive}1 /mnt/sd
 	@echo "Formatting ${drive}"
-	@$(MAKE) install path=/mnt/sd name=${name}
+	@$(MAKE) install path=/mnt/sd name=${name} exec=${exec}
 	@echo "Unmounting ${drive}"
-	@sudo umount /mnt/sd
+	@umount /mnt/sd
 
 .PHONY: help
 help: ## Display this help

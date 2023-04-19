@@ -54,7 +54,9 @@ setup_repositories () {
 }
 
 install_packages () {
-	apk add curl
+	apk update
+	apk add yq
+	apk add --no-cache grep=3.8-r1 # this version seems to work for the k3s install script (otherwise 'grep -P' is not a valid command)
 }
 
 setup_ssh () {
@@ -106,13 +108,31 @@ setup_cgroups () {
 }
 
 install_k3s () {
+	logger -st ${0##*/} "Persisting the k3s directory"
+	mkdir -p /var/lib/rancher/k3s && mount -t ext4 -o rw /dev/mmcblk0p2 /var/lib/rancher/
+
 	logger -st ${0##*/} "Installing k3s"
-	curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=v1.24.8+k3s1 sh -
+	k3s_exec=$(cat /etc/rancher/k3s/config.yaml | yq '.node-label[] | select(. | contains("k3s.io/exec")) | split("=") | .[1]')
+	if [[ $k3s_exec == "" ]] ; then
+		$k3s_exec=server
+		logger -st ${0##*/} "K3s exec was not set, defaulting to $k3s_exec"
+	fi
+
+	if [[ $k3s_exec == server || $k3s_exec == agent ]] ; then
+		logger -st ${0##*/} "K3s exec: $k3s_exec"
+	else
+		logger -st ${0##*/} "ERROR: invalid k3s exec ($k3s_exec), should be one of: server, agent"
+		exit 1
+	fi
+
+	mv /etc/rancher/install/k3s-install.sh /usr/local/bin/
+	mv /etc/rancher/install/k3s /usr/local/bin/
+	chmod +x /usr/local/bin/k3s-install.sh
+	
+	INSTALL_K3S_SKIP_DOWNLOAD=true K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
 	rc-service cgroups start # ensure the cgroups service is running
 	logger -st ${0##*/} "Waiting for the server to be up"
-	sleep 5
-	while [[ "$(k3s kubectl get --raw='/readyz?verbose' | grep -v '[+]')" != "readyz check passed" ]]; do sleep 2; done
-	k3s kubectl get --raw='/readyz?verbose'
+	while [[ "$(k3s kubectl get --raw='/readyz')" != "ok" ]]; do sleep 5; done
 	logger -st ${0##*/} "Waiting for the node to be ready"
 	k3s kubectl wait --for=condition=Ready node $(cat /etc/hostname) --timeout=600s
 	k3s kubectl get nodes

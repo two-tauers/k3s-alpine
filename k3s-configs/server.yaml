@@ -1,0 +1,3 @@
+cluster-init: true
+node-label:
+  - k3s.io/exec=server

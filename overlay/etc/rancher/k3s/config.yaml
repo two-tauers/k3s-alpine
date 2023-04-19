@@ -1,0 +1,5 @@
+token: K1097b6897cc239799b22cc4db3f43a629a416da493bfdcbcca20085911c82732be::server:2bc7b01750eb8b095b1ab18ddcebdc49
+server: https://192.168.0.100:6443
+debug: true
+node-label:
+  - k3s.io/exec=agent
