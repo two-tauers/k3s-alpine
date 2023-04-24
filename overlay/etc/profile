@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "--------------"
+echo "Please propagate any changes into the source."
+echo "This image was built from https://github.com/two-tauers/k3s-alpine"
+echo "Host:    $(hostname)"
+echo "Kernel:  $(uname -r)"
+echo "OS:      $(grep '^NAME' /etc/os-release | cut -d'=' -f2 | cut -d'"' -f2) $(grep '^VERSION_ID' /etc/os-release | cut -d'=' -f2)"
+echo "Uptime: $(uptime)" # one less space in front as uptime already has one
+echo `k3s --version | grep k3s`
+echo "--------------"

@@ -1,4 +1,0 @@
----
-- name: PING
-  ansible.builtin.ping:
-  changed_when: false

@@ -1,0 +1,10 @@
+gpu_mem=32
+enable_uart=1
+dtoverlay=disable-wifi
+dtoverlay=disable-bt
+
+dtoverlay=rpi-poe
+dtparam=poe_fan_temp0=65000,poe_fan_temp0_hyst=2000
+dtparam=poe_fan_temp1=70000,poe_fan_temp1_hyst=5000
+dtparam=poe_fan_temp2=75000,poe_fan_temp2_hyst=5000
+dtparam=poe_fan_temp3=80000,poe_fan_temp3_hyst=5000
