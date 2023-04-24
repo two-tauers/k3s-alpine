@@ -1,0 +1,11 @@
+---
+download:
+  alpine:
+    url: https://dl-cdn.alpinelinux.org/alpine/v3.17/releases/aarch64/alpine-rpi-3.17.2-aarch64.tar.gz
+    path: bin/alpine-rpi-3.17.2-aarch64.tar.gz
+  k3s:
+    url: https://github.com/k3s-io/k3s/releases/download/v1.26.3%2Bk3s1/k3s-arm64
+    path: bin/k3s
+  k3s-install-script:
+    url: https://raw.githubusercontent.com/k3s-io/k3s/master/install.sh
+    path: bin/k3s-install.sh

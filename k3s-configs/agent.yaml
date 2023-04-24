@@ -1,4 +1,0 @@
-token: <TOKEN HERE>
-server: https://<SERVER IP HERE>:6443
-node-label:
-  - k3s.io/exec=agent

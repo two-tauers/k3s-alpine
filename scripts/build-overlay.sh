@@ -1,24 +1,44 @@
 #!/bin/sh
 
-HOSTNAME=$1
-ROLE=$2
+CONFIG=$1
+STAGING=bin/staging
 
-echo "Setting hostname to $HOSTNAME"
-echo $HOSTNAME > overlay/etc/hostname
+if [ -z $CONFIG ]; then
+    echo "Please specify a path to a config file as an argument, quitting..."
+    exit 1
+fi
+which yq > /dev/null 2>&1 || (echo "Package yq is not installed, quitting..." && exit 1)
 
-echo "Setting role to $ROLE"
-mkdir -p overlay/etc/rancher/k3s
-cp k3s-configs/$ROLE.yaml overlay/etc/rancher/k3s/config.yaml
+echo "...Reading config file"
+hostname=$(yq '.hostname' < $CONFIG)
+username=$(yq '.user.name' < $CONFIG)
+pubfile=$(eval echo $(yq '.user.pubfile' < $CONFIG))
+pubkey=$(cat $pubfile)
+k3s_exec=$(yq '.k3s.exec' < $CONFIG)
 
-echo "Adding k3s installation script and binary"
-cp bin/k3s-install.sh overlay/etc/rancher/install/k3s-install.sh
-cp bin/k3s overlay/etc/rancher/install/k3s
+echo "...Copying files to a staging folder"
+mkdir -p $STAGING
+rm -r $STAGING/*
+cp -r overlay/* $STAGING
 
-echo "Packaging apkovl in a tarball"
-chmod +x overlay/etc/local.d/headless.start
-tar -czvf bin/overlay.apkovl.tar.gz -C overlay etc --owner=0 --group=0 --checkpoint=1000 --checkpoint-action=dot
+echo "...Setting a hostname"
+echo $hostname > $STAGING/etc/hostname
 
-echo "Cleaning up"
-overlay/etc/rancher/k3s/config.yaml
-rm overlay/etc/rancher/install/k3s-install.sh
-rm overlay/etc/rancher/install/k3s
+echo "...Adding the ssh key"
+echo $pubkey > $STAGING/etc/pubkeys/$username
+
+echo "...Adding k3s configs"
+mkdir -p $STAGING/etc/rancher/k3s
+yq '.k3s.config' < $CONFIG > $STAGING/etc/rancher/k3s/config.yaml
+echo $k3s_exec > $STAGING/etc/rancher/k3s/exec
+
+echo "...Adding k3s installer"
+mkdir -p $STAGING/etc/rancher/install
+cp bin/k3s-install.sh $STAGING/etc/rancher/install/k3s-install.sh
+cp bin/k3s $STAGING/etc/rancher/install/k3s
+
+echo "...Packaging overlay"
+chmod +x $STAGING/etc/local.d/headless.start
+tar -czf bin/overlay.apkovl.tar.gz -C $STAGING etc --owner=0 --group=0 --checkpoint=1000 --checkpoint-action=dot
+echo " bin/overlay.apkovl.tar.gz"
+echo "...Done"

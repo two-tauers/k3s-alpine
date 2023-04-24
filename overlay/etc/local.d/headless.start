@@ -112,7 +112,7 @@ install_k3s () {
 	mkdir -p /var/lib/rancher/k3s && mount -t ext4 -o rw /dev/mmcblk0p2 /var/lib/rancher/
 
 	logger -st ${0##*/} "Installing k3s"
-	k3s_exec=$(cat /etc/rancher/k3s/config.yaml | yq '.node-label[] | select(. | contains("k3s.io/exec")) | split("=") | .[1]')
+	k3s_exec=$(cat /etc/rancher/k3s/exec)
 	if [[ $k3s_exec == "" ]] ; then
 		$k3s_exec=server
 		logger -st ${0##*/} "K3s exec was not set, defaulting to $k3s_exec"
@@ -126,10 +126,12 @@ install_k3s () {
 	fi
 
 	mv /etc/rancher/install/k3s-install.sh /usr/local/bin/
-	mv /etc/rancher/install/k3s /usr/local/bin/
 	chmod +x /usr/local/bin/k3s-install.sh
-	
-	INSTALL_K3S_SKIP_DOWNLOAD=true K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
+
+	mv /etc/rancher/install/k3s /usr/local/bin/
+	chmod +x /usr/local/bin/k3s
+
+	INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
 	rc-service cgroups start # ensure the cgroups service is running
 	logger -st ${0##*/} "Waiting for the server to be up"
 	while [[ "$(k3s kubectl get --raw='/readyz')" != "ok" ]]; do sleep 5; done

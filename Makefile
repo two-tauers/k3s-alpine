@@ -1,6 +1,5 @@
 .DEFAULT_GOAL := help
-
-ALPINE_FILENAME:=`cat alpine-url | grep -o '[^/]*.tar.gz'`
+SETTINGS:=settings.yaml
 
 check_defined = \
     $(strip $(foreach 1,$1, \
@@ -9,39 +8,41 @@ __check_defined = \
     $(if $(value $1),, \
       $(error Undefined $1$(if $2, ($2))))
 
-.PHONY: download-alpine
-download-alpine: ## Download alpine image into the bin/ folder
-	@echo "Downloading alpine"
-	@sh scripts/download-alpine.sh
 
-.PHONY: download-k3s
-download-k3s: ## Download k3s binary and the install script into the bin/ folder
-	@echo "Downloading the k3s binary"
-	@sh scripts/download-k3s.sh
+.PHONY: download
+download:
+	$(call check_defined, url)
+	$(call check_defined, target)
+	$(info Downloading ${target}...)
+	@test -f ${target} || wget ${url} -O ${target} -q --show-progress
+	
 
-.PHONY: build-overlay
-build-overlay: ## Build bootstrap overlay
-	$(call check_defined, name)
-	$(call check_defined, exec)
-	@echo "Building alkovl"
-	@sh scripts/build-overlay.sh ${name} ${exec}
+.PHONY: download-all
+download-all:
+	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.alpine.url' < ${SETTINGS}) target=$(shell yq -M '.download.alpine.path' < ${SETTINGS})
+	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.k3s.url' < ${SETTINGS}) target=$(shell yq -M '.download.k3s.path' < ${SETTINGS})
+	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.k3s-install-script.url' < ${SETTINGS}) target=$(shell yq -M '.download.k3s-install-script.path' < ${SETTINGS})
+
+.PHONY: overlay
+overlay: ## Build bootstrap overlay
+	$(call check_defined, config)
+	@echo "Building overlay"
+	@sh scripts/build-overlay.sh ${config}
 
 .PHONY: clean
 clean: ## Remove all files from bin/
 	@rm -r bin/*
 
 .PHONY: install
-install: download-alpine download-k3s build-overlay ## Install the OS onto a drive, usage: make install path=/mnt/sd
+install: download-all overlay ## Install the OS onto a path, usage: make install path=/mnt/sd
 	$(call check_defined, path)
-	$(call check_defined, name)
 	@echo "Installing Alpine onto ${path}"
-	@sh scripts/install.sh bin/${ALPINE_FILENAME} bin/overlay.apkovl.tar.gz ${path}
+	@sh scripts/install.sh $(shell yq -M '.download.alpine.path' < ${SETTINGS}) bin/overlay.apkovl.tar.gz ${path}
 
 .PHONY: boot
 boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	$(call check_defined, drive)
-	$(call check_defined, name)
-	$(call check_defined, exec)
+	$(call check_defined, config)
 	@lsblk ${drive}
 	@echo -n "This will ERASE ALL DATA ON ${drive}. Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
 	@echo "Partitioning ${drive}"
@@ -54,7 +55,7 @@ boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	@echo "Mounting ${drive}"
 	@mount ${drive}1 /mnt/sd
 	@echo "Formatting ${drive}"
-	@$(MAKE) install path=/mnt/sd name=${name} exec=${exec}
+	@$(MAKE) --no-print-directory install path=/mnt/sd config=${config}
 	@echo "Unmounting ${drive}"
 	@umount /mnt/sd
 

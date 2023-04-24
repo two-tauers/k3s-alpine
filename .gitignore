@@ -1,4 +1,2 @@
 bin/
 **/*tar.gz
-overlay/etc/hostname
-overlay/etc/pubkeys/tt

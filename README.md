@@ -39,7 +39,7 @@ It will use the k3s config in [k3s-configs/server.yaml](k3s-configs/server.yaml)
 
     - Mount the boot partition: `mkdir -p /mnt/sd && mount <DRIVE NAME>1 /mnt/sd`
 
-    - Build and install: `make install path=/mnt/sd name=<HOSTNAME> exec=server`
+    - Build and install: `make install path=/mnt/sd config=config/server-init.yaml`
 
     - Unmount the partition: `umount /mnt/sd`
 
@@ -55,7 +55,7 @@ It will use the k3s config in [k3s-configs/server.yaml](k3s-configs/server.yaml)
 
     Set the IP and token into the `k3s-configs/agent.yaml` file.
 
-5. Prepare another SD card following steps 1-3, except in step 2, where the make command needs a different `exec` argument: `make install path=/mnt/sd name=<HOSTNAME> exec=agent`
+5. Prepare another SD card following steps 1-3, except in step 2, where the make command needs the agent config file: `make install path=/mnt/sd config=config/agent.yaml`
 
 6. The agent should join the cluster after booting.
 
@@ -78,3 +78,7 @@ Docs: https://docs.k3s.io/cluster-access
     ```
 
     Copy the contents of the file to `$HOME/.kube/config`
+
+## Settings
+
+Download urls and target files are set in `settings.yaml`
