@@ -133,11 +133,19 @@ install_k3s () {
 
 	INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
 	rc-service cgroups start # ensure the cgroups service is running
-	logger -st ${0##*/} "Waiting for the server to be up"
-	while [[ "$(k3s kubectl get --raw='/readyz')" != "ok" ]]; do sleep 5; done
-	logger -st ${0##*/} "Waiting for the node to be ready"
-	k3s kubectl wait --for=condition=Ready node $(cat /etc/hostname) --timeout=600s
-	k3s kubectl get nodes
+
+	logger -st ${0##*/} "Waiting for the $k3s_exec to be up"
+	if [[ $k3s_exec == "server" ]] ; then
+		while ! rc-service k3s status ; do sleep 5; done
+		while [[ "$(k3s kubectl get --raw='/readyz')" != "ok" ]]; do sleep 5; done
+		logger -st ${0##*/} "Waiting for the node to be ready"
+		k3s kubectl wait --for=condition=Ready node $(cat /etc/hostname) --timeout=600s
+		k3s kubectl get nodes
+	else
+		while ! rc-service k3s-agent status ; do sleep 5; done
+	fi
+
+	rc-service k3s-agent status && logger -st ${0##*/} "K3s service is running"
 }
 
 post_cleanup () {
