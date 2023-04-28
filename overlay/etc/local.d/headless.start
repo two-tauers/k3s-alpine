@@ -13,6 +13,7 @@ main () {
 	setup_ssh
 	create_users
 	install_k3s
+	# save_changes
 }
 
 setup_networking () {
@@ -80,7 +81,7 @@ create_users () {
 		logger -st ${0##*/} "Creating user $username..."
 		adduser -D $username -D
 		mkdir -p /home/$username/.ssh
-		mv /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
+		cp /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
 		chown -R $username:$username /home/$username
 		chmod 700 /home/$username/.ssh
 		chmod 600 /home/$username/.ssh/authorized_keys
@@ -108,11 +109,26 @@ setup_cgroups () {
 }
 
 install_k3s () {
-	logger -st ${0##*/} "Persisting the k3s directory"
-	mkdir -p /var/lib/rancher/k3s && mount -t ext4 -o rw /dev/mmcblk0p2 /var/lib/rancher/
+	logger -st ${0##*/} "Persisting the k3s data"
+	# mkdir -p /media/mmcblk0p2 && mount -t ext4 -o rw /dev/mmcblk0p2 /media/mmcblk0p2
+	# mkdir -p /media/mmcblk0p2/var/lib/rancher && ln -s /media/mmcblk0p2/var/lib/rancher /var/lib/rancher
+	# mkdir -p /media/mmcblk0p2/var/lib/kubelet && ln -s /media/mmcblk0p2/var/lib/kubelet /var/lib/kubelet
+
+	# mount the persistent partition
+	apk add fuse-overlayfs
+	logger -st ${0##*/} "Mounting the persistent partition"
+	mkdir -p /media/mmcblk0p2 && mount -t ext4 -o rw /dev/mmcblk0p2 /media/mmcblk0p2
+
+	logger -st ${0##*/} "Mounting overlayfs"
+	mkdir -p /var/lib/rancher /media/mmcblk0p2/var/lib/rancher
+	mkdir -p /var/lib/kubelet /media/mmcblk0p2/var/lib/kubele
+	mkdir -p /etc/rancher /media/mmcblk0p2/etc/rancher
+	mount -o bind /media/mmcblk0p2/var/lib/rancher /var/lib/rancher
+	mount -o bind /media/mmcblk0p2/var/lib/kubelet /var/lib/kubelet
+	mount -o bind /media/mmcblk0p2/etc/rancher /etc/rancher
 
 	logger -st ${0##*/} "Installing k3s"
-	k3s_exec=$(cat /etc/rancher/k3s/exec)
+	k3s_exec=$(cat /etc/boot-data/k3s/exec)
 	if [[ $k3s_exec == "" ]] ; then
 		$k3s_exec=server
 		logger -st ${0##*/} "K3s exec was not set, defaulting to $k3s_exec"
@@ -125,17 +141,19 @@ install_k3s () {
 		exit 1
 	fi
 
-	mv /etc/rancher/install/k3s-install.sh /usr/local/bin/
+	mkdir -p /etc/rancher/k3s/ && cp /etc/boot-data/k3s/config.yaml /etc/rancher/k3s/config.yaml
+
+	cp /etc/boot-data/install/k3s-install.sh /usr/local/bin/
 	chmod +x /usr/local/bin/k3s-install.sh
 
-	mv /etc/rancher/install/k3s /usr/local/bin/
+	cp /etc/boot-data/install/k3s /usr/local/bin/
 	chmod +x /usr/local/bin/k3s
 
 	INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
 	rc-service cgroups start # ensure the cgroups service is running
 
 	logger -st ${0##*/} "Waiting for the $k3s_exec to be up"
-	if [[ $k3s_exec == "server" ]] ; then
+	if [[ $k3s_exec == server ]] ; then
 		while ! rc-service k3s status ; do sleep 5; done
 		while [[ "$(k3s kubectl get --raw='/readyz')" != "ok" ]]; do sleep 5; done
 		logger -st ${0##*/} "Waiting for the node to be ready"
@@ -148,8 +166,13 @@ install_k3s () {
 	rc-service k3s-agent status && logger -st ${0##*/} "K3s service is running"
 }
 
+save_changes () {
+	logger -st ${0##*/} "Saving changes to the overlay..."
+	lbu commit -d
+}
+
 post_cleanup () {
-	## Prep for final post-cleanup
+	# Prep for final post-cleanup
 	cat <<-EOF > /tmp/.trash/post-cleanup
 		#!/bin/sh
 		logger -st ${0##*/} "Cleaning-up..."
