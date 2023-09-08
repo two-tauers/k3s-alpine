@@ -16,7 +16,7 @@ main () {
 	# save_changes
 }
 
-setup_networking () {
+setup_networking () {	
 	logger -st ${0##*/} "Setting up network interfaces..."
 	for dev in $(ls /sys/class/net)
 	do
@@ -38,10 +38,12 @@ setup_networking () {
 		esac
 	done
 
-	logger -st ${0##*/} "Set up network interfaces:"
+	logger -st ${0##*/} "Network interfaces:"
 	cat /etc/network/interfaces
 
+	logger -st ${0##*/} "Setting hostname..."
 	hostname -F /etc/hostname
+	echo "127.0.1.1       $(cat /etc/hostname) $(cat /etc/hostname).local" >> /etc/hosts
 	rc-service networking start
 }
 
@@ -66,7 +68,6 @@ setup_ssh () {
 	apk add openssh openssh-server-pam
 
 	logger -st ${0##*/} "Setting up up sshd"
-	mv /etc/sshd_config /etc/ssh/sshd_config
 	ssh-keygen -A
 	rc-service sshd start
 	/etc/init.d/sshd start
@@ -121,7 +122,7 @@ install_k3s () {
 
 	logger -st ${0##*/} "Mounting overlayfs"
 	mkdir -p /var/lib/rancher /media/mmcblk0p2/var/lib/rancher
-	mkdir -p /var/lib/kubelet /media/mmcblk0p2/var/lib/kubele
+	mkdir -p /var/lib/kubelet /media/mmcblk0p2/var/lib/kubelet
 	mkdir -p /etc/rancher /media/mmcblk0p2/etc/rancher
 	mount -o bind /media/mmcblk0p2/var/lib/rancher /var/lib/rancher
 	mount -o bind /media/mmcblk0p2/var/lib/kubelet /var/lib/kubelet
@@ -168,7 +169,7 @@ install_k3s () {
 
 save_changes () {
 	logger -st ${0##*/} "Saving changes to the overlay..."
-	lbu commit -d
+	lbu commit
 }
 
 post_cleanup () {
