@@ -16,11 +16,7 @@ main () {
 	# save_changes
 }
 
-setup_networking () {
-	logger -st ${-##*/} "Setting hostname..."
-	hostname -F /etc/hostname
-	echo "127.0.1.1       $(cat /etc/hostname) $(cat /etc/hostname).local" >> /etc/hosts
-	
+setup_networking () {	
 	logger -st ${0##*/} "Setting up network interfaces..."
 	for dev in $(ls /sys/class/net)
 	do
@@ -42,9 +38,12 @@ setup_networking () {
 		esac
 	done
 
-	logger -st ${0##*/} "Set up network interfaces:"
+	logger -st ${0##*/} "Network interfaces:"
 	cat /etc/network/interfaces
 
+	logger -st ${0##*/} "Setting hostname..."
+	hostname -F /etc/hostname
+	echo "127.0.1.1       $(cat /etc/hostname) $(cat /etc/hostname).local" >> /etc/hosts
 	rc-service networking start
 }
 
