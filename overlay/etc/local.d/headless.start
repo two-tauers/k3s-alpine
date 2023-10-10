@@ -77,22 +77,33 @@ setup_ssh () {
 }
 
 create_users () {
-	## Create users with SSH access
-	logger -st ${0##*/} "Installing sudo package..."
-	apk add sudo > /root/sudo.log
-	for username in $( ls /etc/pubkeys )
+	for index in $(yq ".users | .[] | path | .[-1]" $CONFIG)
 	do
-		logger -st ${0##*/} "Creating user $username..."
+		username=$(yq ".users.$index | .name" $CONFIG)
+		pubkey=$(yq ".users.$index | .pubkey" $CONFIG)
+		sudoer=$(yq ".users.$index | .sudoer" $CONFIG)
+
+		logger -st ${0##*/} "Creating user $username"
 		adduser -D $username -D
-		mkdir -p /home/$username/.ssh
-		cp /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
+		mkdir -p /home/$username
+
+		if [ ! -z "$pubkey" ]
+		then
+			logger -st ${0##*/} "Enabling ssh for user $username"
+			mkdir -p /home/$username/.ssh
+			echo "$pubkey" > /home/$username/.ssh/authorized_keys
+			chmod 700 /home/$username/.ssh
+			chmod 600 /home/$username/.ssh/authorized_keys
+		fi
+
+		if [ "$sudoer" = true ]
+		then
+			logger -st ${0##*/} "Enabling sudo for user $username"
+			which sudo || apk add sudo
+			echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
+		fi
+
 		chown -R $username:$username /home/$username
-		chmod 700 /home/$username/.ssh
-		chmod 600 /home/$username/.ssh/authorized_keys
-		echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
-		logger -st ${0##*/} "    Sudoers file: $(cat /etc/sudoers.d/$username)"
-		logger -st ${0##*/} "    Created user $username"
-		logger -st ${0##*/} "    Authorized key: $(cat /home/$username/.ssh/authorized_keys)"
 	done
 }
 

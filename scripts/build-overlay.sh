@@ -15,8 +15,6 @@ log "INFO" "Building overlay using config: $CONFIG"
 which yq > /dev/null 2>&1 || log "ERROR" "Package yq is not installed"
 
 log "INFO" "Reading config file"
-username=$(yq '.user.name' < $CONFIG) || log "ERROR" "Could not read username from the config"
-pubkey=$(yq '.user.pubkey' < $CONFIG) || log "ERROR" "Could not read pubkey from the config"
 hostname=$(yq '.hostname' < $CONFIG) || log "ERROR" "Could not read hostname from the config"
 k3s_exec=$(yq '.k3s.exec' < $CONFIG) || log "ERROR" "Could not read k3s exec mode from the config"
 
@@ -45,10 +43,6 @@ echo $hostname > $STAGING/etc/hostname
 log "INFO" "Adding node config"
 cp $CONFIG $STAGING/etc/node-config.yaml
 
-
-
-log "INFO" "Adding user ssh key"
-echo $pubkey > $STAGING/etc/pubkeys/$username
 
 log "INFO" "Adding k3s config"
 mkdir -p $STAGING/etc/boot-config/k3s
