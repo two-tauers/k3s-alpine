@@ -15,9 +15,9 @@ log "INFO" "Building overlay using config: $CONFIG"
 which yq > /dev/null 2>&1 || log "ERROR" "Package yq is not installed"
 
 log "INFO" "Reading config file"
-hostname=$(yq '.hostname' < $CONFIG) || log "ERROR" "Could not read hostname from the config"
 username=$(yq '.user.name' < $CONFIG) || log "ERROR" "Could not read username from the config"
-pubkey=$(eval echo $(yq '.user.pubkey' < $CONFIG)) || log "ERROR" "Could not read pubkey from the config"
+pubkey=$(yq '.user.pubkey' < $CONFIG) || log "ERROR" "Could not read pubkey from the config"
+hostname=$(yq '.hostname' < $CONFIG) || log "ERROR" "Could not read hostname from the config"
 k3s_exec=$(yq '.k3s.exec' < $CONFIG) || log "ERROR" "Could not read k3s exec mode from the config"
 
 if [ "$k3s_exec" != "server" ] && [ "$k3s_exec" != "agent" ]; then
@@ -40,22 +40,26 @@ cp -r overlay/* $STAGING
 log "INFO" "Setting a hostname"
 echo $hostname > $STAGING/etc/hostname
 
-# log "INFO" "Adding user ssh key"
-# echo $pubkey > $STAGING/etc/pubkeys/$username
+
 
 log "INFO" "Adding node config"
-mkdir -p $STAGING/etc/node-config/
 cp $CONFIG $STAGING/etc/node-config.yaml
 
-# log "INFO" "Adding k3s config"
-# mkdir -p $STAGING/etc/boot-config/k3s
-# yq '.k3s.config' < $CONFIG > $STAGING/etc/boot-config/k3s/config.yaml
-# echo $k3s_exec > $STAGING/etc/boot-config/k3s/exec
+
+
+log "INFO" "Adding user ssh key"
+echo $pubkey > $STAGING/etc/pubkeys/$username
+
+log "INFO" "Adding k3s config"
+mkdir -p $STAGING/etc/boot-config/k3s
+echo $CONFIG > $STAGING/etc/boot-config/k3s/config.yaml
+echo $k3s_exec > $STAGING/etc/boot-config/k3s/exec
 
 log "INFO" "Adding k3s installer"
 mkdir -p $STAGING/etc/boot-data/install
 cp bin/k3s-install.sh $STAGING/etc/boot-data/install/k3s-install.sh
 cp bin/k3s $STAGING/etc/boot-data/install/k3s
+
 
 log "INFO" "Packaging overlay"
 chmod +x $STAGING/etc/local.d/headless.start
