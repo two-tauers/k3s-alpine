@@ -2,7 +2,7 @@
 hostname: k3s-agent-0
 user:
   name: tt
-  pubfile: $HOME/.ssh/id_ed25519.pub
+  pubkey: ssh-rsa AAAAC....
 
 k3s: # docs: https://docs.k3s.io/cli/agent
   exec: agent
