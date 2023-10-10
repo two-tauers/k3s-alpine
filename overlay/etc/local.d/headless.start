@@ -1,5 +1,7 @@
 #!/bin/sh
 
+CONFIG="/etc/node-config.yaml"
+
 main () {
 	# Redirect stdout and errors to console as rc.local does not log anything
 	exec 1>/dev/console 2>&1
@@ -12,6 +14,7 @@ main () {
 	set_time
 	setup_ssh
 	create_users
+	mount_media
 	install_k3s
 	# save_changes
 }
@@ -90,6 +93,24 @@ create_users () {
 		logger -st ${0##*/} "    Sudoers file: $(cat /etc/sudoers.d/$username)"
 		logger -st ${0##*/} "    Created user $username"
 		logger -st ${0##*/} "    Authorized key: $(cat /home/$username/.ssh/authorized_keys)"
+	done
+}
+
+mount_media () {
+	for index in $(yq ".mounts | .[] | path | .[-1]" $CONFIG)
+	do
+		label=$(yq ".mounts.$index | .label" $CONFIG)
+		path=$(yq ".mounts.$index | .path" $CONFIG)
+		logger -st ${0##*/} "Mounting LABEL=$label onto $path"
+		device=$(blkid | grep 'LABEL="NFS"' | sed -n 's/^\([^:]*\):.*/\1/p')
+		if [ ! -z "$device" ]
+		then
+			mkdir -p $path
+			mount $device $path
+		else
+			echo "ERROR: Could not find a device with label '$label'. See blkid output below."
+			blkid
+		fi
 	done
 }
 
