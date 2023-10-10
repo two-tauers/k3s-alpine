@@ -1,12 +1,12 @@
 ---
 hostname: k3s-agent-0
-user:
-  name: tt
-  pubkey: ssh-rsa AAAAC....
-
-k3s: # docs: https://docs.k3s.io/cli/agent
+users:
+  - name: tt
+    pubkey: ssh-rsa AAAAC....
+    sudoer: true
+k3s:
   exec: agent
-  config:
+  config:  # docs: https://docs.k3s.io/cli/agent
     token: <TOKEN HERE>
     server: https://<SERVER IP HERE>:6443
     node-label:
