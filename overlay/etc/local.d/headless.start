@@ -161,20 +161,15 @@ install_k3s () {
 	mount -o bind /media/mmcblk0p2/etc/rancher /etc/rancher
 
 	logger -st ${0##*/} "Installing k3s"
-	k3s_exec=$(cat /etc/boot-data/k3s/exec)
-	if [[ $k3s_exec == "" ]] ; then
-		$k3s_exec=server
-		logger -st ${0##*/} "K3s exec was not set, defaulting to $k3s_exec"
-	fi
-
+	k3s_exec=$(yq ".k3s.exec" $CONFIG)
 	if [[ $k3s_exec == server || $k3s_exec == agent ]] ; then
-		logger -st ${0##*/} "K3s exec: $k3s_exec"
+		logger -st ${0##*/} "Installing k3s in $k3s_exec mode"
 	else
-		logger -st ${0##*/} "ERROR: invalid k3s exec ($k3s_exec), should be one of: server, agent"
-		exit 1
+		logger -st ${0##*/} "WARN: '$k3s_exec' is not a recognised k3s mode, should be one of: server, agent. Defaulting to 'server'"
+		$k3s_exec=server
 	fi
 
-	mkdir -p /etc/rancher/k3s/ && cp /etc/boot-data/k3s/config.yaml /etc/rancher/k3s/config.yaml
+	mkdir -p /etc/rancher/k3s/ && yq '.k3s.config' $CONFIG > /etc/rancher/k3s/config.yaml
 
 	cp /etc/boot-data/install/k3s-install.sh /usr/local/bin/
 	chmod +x /usr/local/bin/k3s-install.sh
@@ -195,8 +190,6 @@ install_k3s () {
 	else
 		while ! rc-service k3s-agent status ; do sleep 5; done
 	fi
-
-	rc-service k3s-agent status && logger -st ${0##*/} "K3s service is running"
 }
 
 save_changes () {
