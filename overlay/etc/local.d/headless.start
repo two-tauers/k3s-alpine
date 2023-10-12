@@ -44,10 +44,11 @@ setup_networking () {
 	logger -st ${0##*/} "Network interfaces:"
 	cat /etc/network/interfaces
 
-	logger -st ${0##*/} "Setting hostname..."
+	logger -st ${0##*/} "Setting hostname"
+	yq '.hostname' $CONFIG > /etc/hostname
 	hostname -F /etc/hostname
 	echo "127.0.1.1       $(cat /etc/hostname) $(cat /etc/hostname).local" >> /etc/hosts
-	rc-service networking start
+	rc-service networking status >/dev/null || rc-service networking start
 }
 
 setup_repositories () {
@@ -72,8 +73,8 @@ setup_ssh () {
 
 	logger -st ${0##*/} "Setting up up sshd"
 	ssh-keygen -A
-	rc-service sshd start
-	/etc/init.d/sshd start
+	rc-service sshd status >/dev/null || rc-service sshd start
+	
 }
 
 create_users () {
@@ -178,7 +179,7 @@ install_k3s () {
 	chmod +x /usr/local/bin/k3s
 
 	INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
-	rc-service cgroups start # ensure the cgroups service is running
+	rc-service cgroups status >/dev/null || rc-service cgroups start # ensure the cgroups service is running
 
 	logger -st ${0##*/} "Waiting for the $k3s_exec to be up"
 	if [[ $k3s_exec == server ]] ; then
