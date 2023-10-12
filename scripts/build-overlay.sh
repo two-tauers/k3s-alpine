@@ -30,6 +30,9 @@ mkdir -p $STAGING
 rm -r $STAGING/*
 cp -r overlay/* $STAGING
 
+log "INFO" "Setting a hostname"
+echo $hostname > $STAGING/etc/hostname
+
 log "INFO" "Adding node config"
 cp $CONFIG $STAGING/etc/node-config.yaml
 

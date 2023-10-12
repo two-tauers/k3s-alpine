@@ -45,7 +45,6 @@ setup_networking () {
 	cat /etc/network/interfaces
 
 	logger -st ${0##*/} "Setting hostname"
-	yq '.hostname' $CONFIG > /etc/hostname
 	hostname -F /etc/hostname
 	echo "127.0.1.1       $(cat /etc/hostname) $(cat /etc/hostname).local" >> /etc/hosts
 	rc-service networking status >/dev/null || rc-service networking start
