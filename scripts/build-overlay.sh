@@ -42,7 +42,7 @@ cp bin/k3s-install.sh $STAGING/etc/boot-data/install/k3s-install.sh
 cp bin/k3s $STAGING/etc/boot-data/install/k3s
 
 log "INFO" "Packaging overlay"
-chmod +x $STAGING/etc/local.d/headless.start
+chmod +x $STAGING/etc/local.d/node.start
 tar -czf $OUTPUT -C $STAGING etc --owner=0 || log "ERROR" "Failed to package the overlay"
 
 log "INFO" "Overlay saved to $OUTPUT"
