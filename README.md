@@ -1,6 +1,6 @@
 # k3s-alpine
 
-Tools to set up k3s on a Raspberry pi running Alpine pinux.
+Tools to set up k3s on a Raspberry Pi running Alpine Linux.
 
 ## Prerequisites
 
@@ -10,16 +10,20 @@ Tools to set up k3s on a Raspberry pi running Alpine pinux.
 
 ## Usage
 
-### K3s server
+## Settings
+
+Download urls and target files are set in `settings.yaml`.
+
+### K3s first server
 
 Before installing any agents, you need to install and init a server.
-It will use the k3s config in [k3s-configs/server.yaml](k3s-configs/server.yaml).
+It will use the k3s config in [config/server-init.yaml](config/server-init.yaml).
 
 1. Prepare the SD card
 
     - Plug in the SD card and check its name with `lsblk`
 
-        > NOTE: this will wipe the drive, so make sure you find the correct one
+        > NOTE: next steps will wipe the drive, so make sure you find the correct one
 
     - Format it and make two drives - one boot partition (FAT32) and one for k3s data (e.g. ext4)
 
@@ -35,7 +39,9 @@ It will use the k3s config in [k3s-configs/server.yaml](k3s-configs/server.yaml)
 
 2. Build and install the server
 
-    - Put a file with your public SSH key into `overlay/etc/pubkeys/` folder. The name of the file will be the username. Multiple files are supported.
+    - Prepare a config file, see: [config/server-init.yaml](config/server-init.yaml)
+
+        > NOTE: you need to set `k3s.config.cluster-init: true` in the config for the first control plane, but only for the first one.
 
     - Mount the boot partition: `mkdir -p /mnt/sd && mount <DRIVE NAME>1 /mnt/sd`
 
@@ -45,7 +51,7 @@ It will use the k3s config in [k3s-configs/server.yaml](k3s-configs/server.yaml)
 
 3. Insert the SD card into the Raspberry Pi and power it up. After a minute, the init script should install k3s and start it up.
 
-### K3s agent
+### Additional nodes
 
 4. Once the server is up, ssh onto the Pi and get the agent token that will be used to add more nodes:
 
@@ -56,6 +62,8 @@ It will use the k3s config in [k3s-configs/server.yaml](k3s-configs/server.yaml)
     Set the IP and token into the `k3s-configs/agent.yaml` file.
 
 5. Prepare another SD card following steps 1-3, except in step 2, where the make command needs the agent config file: `make install path=/mnt/sd config=config/agent.yaml`
+
+    > NOTE: If you're adding another control plan, set `k3s.exec: server` in the config _without_ `k3s.config.cluster-init: true` and with IP and token of the existing server.
 
 6. The agent should join the cluster after booting.
 
@@ -78,7 +86,3 @@ Docs: https://docs.k3s.io/cluster-access
     ```
 
     Copy the contents of the file to `$HOME/.kube/config`
-
-## Settings
-
-Download urls and target files are set in `settings.yaml`

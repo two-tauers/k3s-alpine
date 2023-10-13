@@ -15,4 +15,4 @@ URL=$1
 TARGET=$2
 
 log "INFO" "Downloading $URL"
-test -f ${TARGET} || wget ${URL} -O ${TARGET} -q --show-progress || log "ERROR" "Failed to download $URL"
+test -f ${TARGET} && log "INFO" "File ${TARGET} already exists, delete it to redownload" || wget ${URL} -O ${TARGET} -q --show-progress || log "ERROR" "Failed to download $URL"
