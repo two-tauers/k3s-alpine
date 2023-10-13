@@ -13,9 +13,7 @@ __check_defined = \
 download:
 	$(call check_defined, url)
 	$(call check_defined, target)
-	$(info Downloading ${target}...)
-	@test -f ${target} || wget ${url} -O ${target} -q --show-progress
-	
+	@sh scripts/download.sh ${url} ${target}
 
 .PHONY: download-all
 download-all:
@@ -26,7 +24,6 @@ download-all:
 .PHONY: overlay
 overlay: ## Build bootstrap overlay
 	$(call check_defined, config)
-	@echo "Building overlay"
 	@sh scripts/build-overlay.sh ${config}
 
 .PHONY: clean
@@ -36,7 +33,6 @@ clean: ## Remove all files from bin/
 .PHONY: install
 install: download-all overlay ## Install the OS onto a path, usage: make install path=/mnt/sd
 	$(call check_defined, path)
-	@echo "Installing Alpine onto ${path}"
 	@sh scripts/install.sh $(shell yq -M '.download.alpine.path' < ${SETTINGS}) bin/overlay.apkovl.tar.gz ${path}
 
 .PHONY: boot

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+CONFIG="/etc/node-config.yaml"
+
 main () {
 	# Redirect stdout and errors to console as rc.local does not log anything
 	exec 1>/dev/console 2>&1
@@ -12,6 +14,7 @@ main () {
 	set_time
 	setup_ssh
 	create_users
+	mount_media
 	install_k3s
 	# save_changes
 }
@@ -41,10 +44,10 @@ setup_networking () {
 	logger -st ${0##*/} "Network interfaces:"
 	cat /etc/network/interfaces
 
-	logger -st ${0##*/} "Setting hostname..."
+	logger -st ${0##*/} "Setting hostname"
 	hostname -F /etc/hostname
 	echo "127.0.1.1       $(cat /etc/hostname) $(cat /etc/hostname).local" >> /etc/hosts
-	rc-service networking start
+	rc-service networking start --ifnotstarted
 }
 
 setup_repositories () {
@@ -69,27 +72,56 @@ setup_ssh () {
 
 	logger -st ${0##*/} "Setting up up sshd"
 	ssh-keygen -A
-	rc-service sshd start
-	/etc/init.d/sshd start
+	rc-service sshd start --ifnotstarted
+	
 }
 
 create_users () {
-	## Create users with SSH access
-	logger -st ${0##*/} "Installing sudo package..."
-	apk add sudo > /root/sudo.log
-	for username in $( ls /etc/pubkeys )
+	for index in $(yq ".users | .[] | path | .[-1]" $CONFIG)
 	do
-		logger -st ${0##*/} "Creating user $username..."
+		username=$(yq ".users.$index | .name" $CONFIG)
+		pubkey=$(yq ".users.$index | .pubkey" $CONFIG)
+		sudoer=$(yq ".users.$index | .sudoer" $CONFIG)
+
+		logger -st ${0##*/} "Creating user $username"
 		adduser -D $username -D
-		mkdir -p /home/$username/.ssh
-		cp /etc/pubkeys/$username /home/$username/.ssh/authorized_keys
+		mkdir -p /home/$username
+
+		if [ ! -z "$pubkey" ]
+		then
+			logger -st ${0##*/} "Enabling ssh for user $username"
+			mkdir -p /home/$username/.ssh
+			echo "$pubkey" > /home/$username/.ssh/authorized_keys
+			chmod 700 /home/$username/.ssh
+			chmod 600 /home/$username/.ssh/authorized_keys
+		fi
+
+		if [ "$sudoer" = true ]
+		then
+			logger -st ${0##*/} "Enabling sudo for user $username"
+			which sudo || apk add sudo
+			echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
+		fi
+
 		chown -R $username:$username /home/$username
-		chmod 700 /home/$username/.ssh
-		chmod 600 /home/$username/.ssh/authorized_keys
-		echo "$username  ALL=(ALL)  NOPASSWD: ALL" > /etc/sudoers.d/$username
-		logger -st ${0##*/} "    Sudoers file: $(cat /etc/sudoers.d/$username)"
-		logger -st ${0##*/} "    Created user $username"
-		logger -st ${0##*/} "    Authorized key: $(cat /home/$username/.ssh/authorized_keys)"
+	done
+}
+
+mount_media () {
+	for index in $(yq ".mounts | .[] | path | .[-1]" $CONFIG)
+	do
+		label=$(yq ".mounts.$index | .label" $CONFIG)
+		path=$(yq ".mounts.$index | .path" $CONFIG)
+		logger -st ${0##*/} "Mounting LABEL=$label onto $path"
+		device=$(blkid | grep 'LABEL="NFS"' | sed -n 's/^\([^:]*\):.*/\1/p')
+		if [ ! -z "$device" ]
+		then
+			mkdir -p $path
+			mount $device $path
+		else
+			echo "ERROR: Could not find a device with label '$label'. See blkid output below."
+			blkid
+		fi
 	done
 }
 
@@ -129,20 +161,15 @@ install_k3s () {
 	mount -o bind /media/mmcblk0p2/etc/rancher /etc/rancher
 
 	logger -st ${0##*/} "Installing k3s"
-	k3s_exec=$(cat /etc/boot-data/k3s/exec)
-	if [[ $k3s_exec == "" ]] ; then
-		$k3s_exec=server
-		logger -st ${0##*/} "K3s exec was not set, defaulting to $k3s_exec"
-	fi
-
+	k3s_exec=$(yq ".k3s.exec" $CONFIG)
 	if [[ $k3s_exec == server || $k3s_exec == agent ]] ; then
-		logger -st ${0##*/} "K3s exec: $k3s_exec"
+		logger -st ${0##*/} "Installing k3s in $k3s_exec mode"
 	else
-		logger -st ${0##*/} "ERROR: invalid k3s exec ($k3s_exec), should be one of: server, agent"
-		exit 1
+		logger -st ${0##*/} "WARN: '$k3s_exec' is not a recognised k3s mode, should be one of: server, agent. Defaulting to 'server'"
+		$k3s_exec=server
 	fi
 
-	mkdir -p /etc/rancher/k3s/ && cp /etc/boot-data/k3s/config.yaml /etc/rancher/k3s/config.yaml
+	mkdir -p /etc/rancher/k3s/ && yq '.k3s.config' $CONFIG > /etc/rancher/k3s/config.yaml
 
 	cp /etc/boot-data/install/k3s-install.sh /usr/local/bin/
 	chmod +x /usr/local/bin/k3s-install.sh
@@ -151,7 +178,7 @@ install_k3s () {
 	chmod +x /usr/local/bin/k3s
 
 	INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
-	rc-service cgroups start # ensure the cgroups service is running
+	rc-service cgroups start --ifnotstarted
 
 	logger -st ${0##*/} "Waiting for the $k3s_exec to be up"
 	if [[ $k3s_exec == server ]] ; then
@@ -163,8 +190,6 @@ install_k3s () {
 	else
 		while ! rc-service k3s-agent status ; do sleep 5; done
 	fi
-
-	rc-service k3s-agent status && logger -st ${0##*/} "K3s service is running"
 }
 
 save_changes () {
@@ -180,7 +205,7 @@ post_cleanup () {
 		# rm /etc/modules-load.d/g_ether.conf
 		# rm /etc/modprobe.d/g_ether.conf
 		rc-update del local default
-		rm /etc/local.d/headless.start
+		rm /etc/local.d/node.start
 
 		logger -st ${0##*/} "Done !!"
 		EOF
