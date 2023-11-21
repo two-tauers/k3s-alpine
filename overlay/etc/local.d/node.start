@@ -15,6 +15,7 @@ main () {
 	setup_ssh
 	create_users
 	mount_media
+	bind_paths
 	install_k3s
 	# save_changes
 }
@@ -125,6 +126,18 @@ mount_media () {
 	done
 }
 
+bind_paths () {
+	apk add fuse-overlayfs
+	for index in $(yq ".binds | .[] | path | .[-1]" $CONFIG)
+	do
+		source=$(yq ".binds.$index | .source" $CONFIG)
+		target=$(yq ".binds.$index | .target" $CONFIG)
+		logger -st ${0##*/} "Binding $source to $target"
+		mkdir -p $source $target
+		mount -o bind $source $target
+	done
+}
+
 set_time () {
 	logger -st ${0##*/} "Setting time"
 	ntpd -d -q -n -p uk.pool.ntp.org
@@ -142,24 +155,6 @@ setup_cgroups () {
 }
 
 install_k3s () {
-	logger -st ${0##*/} "Persisting the k3s data"
-	# mkdir -p /media/mmcblk0p2 && mount -t ext4 -o rw /dev/mmcblk0p2 /media/mmcblk0p2
-	# mkdir -p /media/mmcblk0p2/var/lib/rancher && ln -s /media/mmcblk0p2/var/lib/rancher /var/lib/rancher
-	# mkdir -p /media/mmcblk0p2/var/lib/kubelet && ln -s /media/mmcblk0p2/var/lib/kubelet /var/lib/kubelet
-
-	# mount the persistent partition
-	apk add fuse-overlayfs
-	logger -st ${0##*/} "Mounting the persistent partition"
-	mkdir -p /media/mmcblk0p2 && mount -t ext4 -o rw /dev/mmcblk0p2 /media/mmcblk0p2
-
-	logger -st ${0##*/} "Mounting overlayfs"
-	mkdir -p /var/lib/rancher /media/mmcblk0p2/var/lib/rancher
-	mkdir -p /var/lib/kubelet /media/mmcblk0p2/var/lib/kubelet
-	mkdir -p /etc/rancher /media/mmcblk0p2/etc/rancher
-	mount -o bind /media/mmcblk0p2/var/lib/rancher /var/lib/rancher
-	mount -o bind /media/mmcblk0p2/var/lib/kubelet /var/lib/kubelet
-	mount -o bind /media/mmcblk0p2/etc/rancher /etc/rancher
-
 	logger -st ${0##*/} "Installing k3s"
 	k3s_exec=$(yq ".k3s.exec" $CONFIG)
 	if [[ $k3s_exec == server || $k3s_exec == agent ]] ; then
