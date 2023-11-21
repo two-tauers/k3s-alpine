@@ -113,7 +113,7 @@ mount_media () {
 		label=$(yq ".mounts.$index | .label" $CONFIG)
 		path=$(yq ".mounts.$index | .path" $CONFIG)
 		logger -st ${0##*/} "Mounting LABEL=$label onto $path"
-		device=$(blkid | grep 'LABEL="NFS"' | sed -n 's/^\([^:]*\):.*/\1/p')
+		device=$(blkid | grep "LABEL=\"$label\"" | sed -n 's/^\([^:]*\):.*/\1/p')
 		if [ ! -z "$device" ]
 		then
 			mkdir -p $path
