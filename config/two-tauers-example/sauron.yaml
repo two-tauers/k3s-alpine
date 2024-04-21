@@ -1,0 +1,33 @@
+---
+hostname: sauron
+
+users:
+  - name: tt
+    pubkey: ssh-ed25519 AAAAC3N...............
+    sudoer: true
+
+# drives to mount
+mounts:
+  - label: kubelet-sauron # writable second partition for kubelet on the SD card
+    path: /mnt/k3s-persisted-state
+  - label: k3s-data-sauron # also writable, for persistent volumes
+    path: /mnt/data
+
+# mount -o bind <source> <target>
+# mount all the k3s directories onto the writable partition
+binds:
+  - source: /mnt/k3s-persisted-state/var/lib/rancher
+    target: /var/lib/rancher
+  - source: /mnt/k3s-persisted-state/var/lib/kubelet
+    target: /var/lib/kubelet
+  - source: /mnt/k3s-persisted-state/etc/rancher
+    target: /etc/rancher
+  - source: /mnt/k3s-persisted-state/run/k3s
+    target: /run/k3s
+
+k3s:
+  exec: server
+  config:  # docs: https://docs.k3s.io/cli/server
+    cluster-init: true
+    node-labels:
+      - k3s.io/os=alpine
