@@ -1,0 +1,33 @@
+---
+hostname: orker3
+
+users:
+  - name: tt
+    pubkey: ssh-ed25519 AAAAC3N...............
+    sudoer: true
+
+# drives to mount
+mounts:
+  - label: kubelet-orker3
+    path: /mnt/k3s-persisted-state
+  - label: k3s-data-orker3
+    path: /mnt/data
+
+# mount -o bind <source> <target>
+binds:
+  - source: /mnt/k3s-persisted-state/var/lib/rancher
+    target: /var/lib/rancher
+  - source: /mnt/k3s-persisted-state/var/lib/kubelet
+    target: /var/lib/kubelet
+  - source: /mnt/k3s-persisted-state/etc/rancher
+    target: /etc/rancher
+  - source: /mnt/k3s-persisted-state/run/k3s
+    target: /run/k3s
+
+k3s: # docs: https://docs.k3s.io/cli/agent
+  exec: agent
+  config:
+    token: K10f94f05eaaaaaaaaaaaaaaaaaaaaaa::server:aaaaaaaaaaaaaaaaaaaaaaaaaa
+    server: https://192.168.0.100:6443
+    node-label:
+      - k3s.io/os=alpine
