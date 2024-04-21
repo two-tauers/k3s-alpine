@@ -85,4 +85,11 @@ Docs: https://docs.k3s.io/cluster-access
     sudo cat /etc/rancher/k3s/k3s.yaml
     ```
 
-    Copy the contents of the file to `$HOME/.kube/config`
+    Copy the contents of the file to `$HOME/.kube/config` or as one of the contexts into `$HOME/.kube/contexts/two-tauers.yaml`.
+
+
+Or use this handy command to copy from the control plane called `sauron` and rename the cluster and user with yq:
+
+```bash
+ssh sauron sudo cat /etc/rancher/k3s/k3s.yaml | yq e '.clusters.0.cluster.server="https://192.168.0.100:6443" | .clusters.0.name="two-tauers" | .contexts.0.context.cluster="two-tauers" | .contexts.0.context.user="tt" | .contexts.0.name="two-tauers" | .users.0.name="tt" | .current-context="two-tauers"' > ~/.kube/contexts/two-tauers.yaml
+```
