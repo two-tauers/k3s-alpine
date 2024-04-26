@@ -63,7 +63,21 @@ setup_repositories () {
 install_packages () {
 	apk update
 	apk add yq
+	apk add mount
 	apk add --no-cache grep=3.8-r1 # this version seems to work for the k3s install script (otherwise 'grep -P' is not a valid command)
+
+	for index in $(yq ".packages | .[] | path | .[-1]" $CONFIG)
+	do
+		name=$(yq ".packages.$index | .name" $CONFIG)
+		version=$(yq ".packages.$index | .version // \"\"" $CONFIG)
+		service=$(yq ".packages.$index | .service // \"\"" $CONFIG)
+		apk add "$name$version"
+		if [ ! -z "$service" ]
+		then
+			logger -st ${0##*/} "Starting service: $service"
+			rc-service $service start
+		fi
+	done
 }
 
 setup_ssh () {
@@ -113,17 +127,23 @@ mount_media () {
 	do
 		label=$(yq ".mounts.$index | .label" $CONFIG)
 		path=$(yq ".mounts.$index | .path" $CONFIG)
+		flags=$(yq ".mounts.$index | .flags // \"\"" $CONFIG)
 		logger -st ${0##*/} "Mounting LABEL=$label onto $path"
 		device=$(blkid | grep "LABEL=\"$label\"" | sed -n 's/^\([^:]*\):.*/\1/p')
 		if [ ! -z "$device" ]
 		then
 			mkdir -p $path
-			mount $device $path
+			logger -st ${0##*/} "mount $flags $device $path"
+			mount $flags $device $path
 		else
 			echo "ERROR: Could not find a device with label '$label'. See blkid output below."
 			blkid
 		fi
 	done
+
+	# this fixes an issue with mounting filesystem onto containers
+	# especially for Longhorn
+	mount --make-rshared /
 }
 
 bind_paths () {

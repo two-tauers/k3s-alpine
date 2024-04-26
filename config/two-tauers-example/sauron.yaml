@@ -3,19 +3,31 @@ hostname: sauron
 
 users:
   - name: tt
-    pubkey: ssh-ed25519 AAAAC3N...............
+    pubkey: ssh-ed25519 AAAAC3N...
     sudoer: true
+
+# additional packages to install
+packages:
+  # below are preprequisites for longhorn
+  - name: bash
+  - name: jq
+  - name: open-iscsi
+    service: iscsid # this service will be started after iscsid is installed
+  - name: nfs-utils
 
 # drives to mount
 mounts:
-  - label: kubelet-sauron # writable second partition for kubelet on the SD card
+  # writable partition to keep k3s data on
+  # Alpine runs in memory and these paths need to live on disk
+  - label: kubelet-sauron
     path: /mnt/k3s-persisted-state
-  - label: k3s-data-sauron # also writable, for persistent volumes
-    path: /mnt/data
+  - label: k3s-data-sauron
+    path: /var/lib/longhorn
+    flags: --make-rshared
 
 # mount -o bind <source> <target>
-# mount all the k3s directories onto the writable partition
 binds:
+  # bind mount k3s folders into the writable partition
   - source: /mnt/k3s-persisted-state/var/lib/rancher
     target: /var/lib/rancher
   - source: /mnt/k3s-persisted-state/var/lib/kubelet
