@@ -21,6 +21,7 @@ mounts:
   # Alpine runs in memory and these paths need to live on disk
   - label: kubelet-sauron
     path: /mnt/k3s-persisted-state
+  # USB SSD for persistent volumes for Longhorn
   - label: k3s-data-sauron
     path: /var/lib/longhorn
     flags: --make-rshared
