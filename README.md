@@ -36,7 +36,7 @@ It will use the k3s config in [config/server-init.yaml](config/server-init.yaml)
         mkfs.ext4 <DRIVE NAME>2
         ```
         
-        > Note that this is already done withing the `boot` make target, but please check the code before running it, as it might inadvertently delete data.
+        > Note that this is already done within the `boot` make target (or not!), please check the code before running it, as it might inadvertently delete data. If you're using a different device for persistent data, you don't need two partitions.
 
         (see [parted docs](https://www.gnu.org/software/parted/manual/parted.html))
 
