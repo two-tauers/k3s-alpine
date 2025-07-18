@@ -15,7 +15,7 @@ log "INFO" "Building overlay using config: $CONFIG"
 which yq > /dev/null 2>&1 || log "ERROR" "Package yq is not installed"
 
 log "INFO" "Reading config file"
-hostname=$(yq '.hostname' < $CONFIG) || log "ERROR" "Could not read hostname from the config"
+hostname=$(yq -r '.hostname' < $CONFIG) || log "ERROR" "Could not read hostname from the config"
 
 log "INFO" "Generating host keys"
 mkdir -p overlay/etc/ssh/

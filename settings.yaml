@@ -1,11 +1,11 @@
 ---
 download:
   alpine:
-    url: https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/aarch64/alpine-rpi-3.18.6-aarch64.tar.gz
-    path: bin/alpine-rpi-3.18.6-aarch64.tar.gz
+    url: https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/aarch64/alpine-rpi-3.22.1-aarch64.tar.gz
+    path: bin/alpine-rpi-3.22.1-aarch64.tar.gz
   k3s:
-    url: https://github.com/k3s-io/k3s/releases/download/v1.29.3%2Bk3s1/k3s-arm64
+    url: https://github.com/k3s-io/k3s/releases/download/v1.33.2%2Bk3s1/k3s-arm64
     path: bin/k3s
-  k3s-install-script:
-    url: https://raw.githubusercontent.com/k3s-io/k3s/master/install.sh
+  k3s-installer:
+    url: https://raw.githubusercontent.com/k3s-io/k3s/v1.33.2%2Bk3s1/install.sh
     path: bin/k3s-install.sh

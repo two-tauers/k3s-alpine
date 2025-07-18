@@ -19,7 +19,7 @@ download:
 download-all:
 	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.alpine.url' < ${SETTINGS}) target=$(shell yq -M '.download.alpine.path' < ${SETTINGS})
 	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.k3s.url' < ${SETTINGS}) target=$(shell yq -M '.download.k3s.path' < ${SETTINGS})
-	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.k3s-install-script.url' < ${SETTINGS}) target=$(shell yq -M '.download.k3s-install-script.path' < ${SETTINGS})
+	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download."k3s-installer".url' < ${SETTINGS}) target=$(shell yq -M '.download."k3s-installer".path' < ${SETTINGS})
 
 .PHONY: overlay
 overlay: ## Build bootstrap overlay
@@ -42,20 +42,18 @@ boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	@lsblk ${drive}
 	@echo -n "This will ERASE ALL DATA ON ${drive}. Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
 	@echo "Partitioning ${drive}"
-	@parted ${drive}  rm 1  rm 2  mkpart primary FAT32 1M 1024M  mkpart primary FAT32 1024M 100%  set 1 boot on  print
+	@parted ${drive}  rm 1  mkpart primary FAT32 1M 100%  set 1 boot on  print
 	@sleep 2
 	@echo "Formatting ${drive}1"
 	@mkfs.fat ${drive}1
-	@echo "Formatting ${drive}2"
-	@mkfs.ext4 ${drive}2
 	@echo "Mounting ${drive}"
 	@mount ${drive}1 /mnt/sd
 	@echo "Installing onto ${drive}"
 	@$(MAKE) --no-print-directory install path=/mnt/sd config=${config}
 	@echo "Unmounting ${drive}"
 	@umount /mnt/sd
-	@echo "Adding 'kubelet-$(shell basename ${config} .yaml)' to the secondary partition"
-	@sudo e2label ${drive}2 "kubelet-$(shell basename ${config} .yaml)"
+# 	@echo "Adding 'kubelet-$(shell basename ${config} .yaml)' to the secondary partition"
+# 	@e2label ${drive}1 "kubelet-$(shell basename ${config} .yaml)"
 
 .PHONY: help
 help: ## Display this help

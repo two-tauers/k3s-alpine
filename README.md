@@ -7,6 +7,7 @@ Tools to set up k3s on a Raspberry Pi running Alpine Linux.
 - Raspberry Pi 4
 - SD card and means of attaching it to a computer
 - Linux computer that will do the flashing of the cards
+- Install packages: `sudo apt-get install make dosfstools parted yq wget`
 
 ## Usage
 
