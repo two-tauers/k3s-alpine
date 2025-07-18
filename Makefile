@@ -9,34 +9,34 @@ __check_defined = \
       $(error Undefined $1$(if $2, ($2))))
 
 
-.PHONY: download
+.PHONY: download ## Download file to a place: make download https://www.somewhere.com/file.tar /path/to/download
 download:
 	$(call check_defined, url)
 	$(call check_defined, target)
 	@sh scripts/download.sh ${url} ${target}
 
-.PHONY: download-all
+.PHONY: download-all ## Download alpine and k3s to bin/ directory, as defined in settings.yaml: make download-all
 download-all:
 	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.alpine.url' < ${SETTINGS}) target=$(shell yq -M '.download.alpine.path' < ${SETTINGS})
 	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download.k3s.url' < ${SETTINGS}) target=$(shell yq -M '.download.k3s.path' < ${SETTINGS})
 	@$(MAKE) --no-print-directory download url=$(shell yq -M '.download."k3s-installer".url' < ${SETTINGS}) target=$(shell yq -M '.download."k3s-installer".path' < ${SETTINGS})
 
 .PHONY: overlay
-overlay: ## Build bootstrap overlay
+overlay: ## Build bootstrap overlay, runs scripts/build-overlay.sh: make overlay config=config/server-init.yaml
 	$(call check_defined, config)
 	@sh scripts/build-overlay.sh ${config}
 
 .PHONY: clean
-clean: ## Remove all files from bin/
+clean: ## Remove all files from bin/: make clean
 	@rm -r bin/*
 
 .PHONY: install
-install: download-all overlay ## Install the OS onto a path, usage: make install path=/mnt/sd
+install: download-all overlay ## Install the OS onto a path, runs download-all and overlay beforehand: make install path=/mnt/sd
 	$(call check_defined, path)
 	@sh scripts/install.sh $(shell yq -M '.download.alpine.path' < ${SETTINGS}) bin/overlay.apkovl.tar.gz ${path}
 
 .PHONY: boot
-boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
+boot: ## !!! WILL DELETE DATA, LOOK AT CONTENTS BEFORE RUNNING !!! Make a bootable drive: sudo make boot drive=/dev/sdb config=config/server-init.yaml
 	$(call check_defined, drive)
 	$(call check_defined, config)
 	@lsblk ${drive}
@@ -52,8 +52,6 @@ boot: ## Make a bootable drive, required `drive` argument (WILL DELETE DATA)
 	@$(MAKE) --no-print-directory install path=/mnt/sd config=${config}
 	@echo "Unmounting ${drive}"
 	@umount /mnt/sd
-# 	@echo "Adding 'kubelet-$(shell basename ${config} .yaml)' to the secondary partition"
-# 	@e2label ${drive}1 "kubelet-$(shell basename ${config} .yaml)"
 
 .PHONY: help
 help: ## Display this help

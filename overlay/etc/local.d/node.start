@@ -17,7 +17,7 @@ main () {
 	mount_media
 	bind_paths
 	install_k3s
-	# save_changes
+	# save_changes # shouldn't need to do this
 }
 
 setup_networking () {	
@@ -62,8 +62,8 @@ setup_repositories () {
 
 install_packages () {
 	apk update
-	apk add yq
-	apk add mount
+	apk add yq # required to read the config file
+	apk add mount # required to mount any drives defined in the config
 	apk add --no-cache grep=3.8-r1 # this version seems to work for the k3s install script (otherwise 'grep -P' is not a valid command)
 
 	for index in $(yq ".packages | .[] | path | .[-1]" $CONFIG)
@@ -83,7 +83,7 @@ install_packages () {
 setup_ssh () {
 	## Set up SSH
 	logger -st ${0##*/} "Installing openssh"
-	apk add openssh openssh-server-pam
+	apk add openssh openssh-server-pam # required to enable ssh access
 
 	logger -st ${0##*/} "Setting up up sshd"
 	ssh-keygen -A
@@ -147,7 +147,7 @@ mount_media () {
 }
 
 bind_paths () {
-	apk add fuse-overlayfs
+	apk add fuse-overlayfs # required for mount binds
 	for index in $(yq ".binds | .[] | path | .[-1]" $CONFIG)
 	do
 		source=$(yq ".binds.$index | .source" $CONFIG)
@@ -184,17 +184,23 @@ install_k3s () {
 		$k3s_exec=server
 	fi
 
+	# copy k3s config block to the place it will read it from
 	mkdir -p /etc/rancher/k3s/ && yq '.k3s.config' $CONFIG > /etc/rancher/k3s/config.yaml
 
+	# copy k3s binary and install script and make then executable
 	cp /etc/boot-data/install/k3s-install.sh /usr/local/bin/
 	chmod +x /usr/local/bin/k3s-install.sh
-
 	cp /etc/boot-data/install/k3s /usr/local/bin/
 	chmod +x /usr/local/bin/k3s
 
+	# Install k3s without downloading it - binary already present
 	INSTALL_K3S_SKIP_DOWNLOAD=true INSTALL_K3S_EXEC=$k3s_exec /usr/local/bin/k3s-install.sh
 	rc-service cgroups start --ifnotstarted
 
+	# Wait until k3s is up and running
+	# If server wait until the control plane is "Ready"
+	# If agent, just wait for the service to be up
+	# Waits forever if anything is wrong, check /var/log/k3s.log in that case
 	logger -st ${0##*/} "Waiting for the $k3s_exec to be up"
 	if [[ $k3s_exec == server ]] ; then
 		while ! rc-service k3s status ; do sleep 5; done

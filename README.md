@@ -2,6 +2,8 @@
 
 Tools to set up k3s on a Raspberry Pi running Alpine Linux.
 
+Things were borrowed (and more importantly learned) from [this repo](https://github.com/macmpi/alpine-linux-headless-bootstrap).
+
 ## Prerequisites
 
 - Raspberry Pi 4
@@ -94,3 +96,14 @@ Docs: https://docs.k3s.io/cluster-access
     ```bash
     ssh sauron sudo cat /etc/rancher/k3s/k3s.yaml | yq e '.clusters.0.cluster.server="https://192.168.0.100:6443" | .clusters.0.name="two-tauers" | .contexts.0.context.cluster="two-tauers" | .contexts.0.context.user="tt" | .contexts.0.name="two-tauers" | .users.0.name="tt" | .current-context="two-tauers"' > ~/.kube/contexts/two-tauers.yaml
     ```
+
+## Repo structure
+
+- `.github/`: Github Actions workflows.
+- `boot/`: boot config files, including config to enable cgroups and fan control in a raspberry pi.
+- `config/`: config used by the build and install scripts to flash the media, as well as by the startup script.
+- `overlay`: contents of the Alpine overlay file.
+    - `overlay/local.d/node.start` is the startup script that runs on every start of the OS. It uses a config file above.
+- `scripts/`: helper scripts for flashing the media.
+- `Makefile`: shortcuts for downloading alpine and k3s, as well building the overlay and installing the OS onto the media.
+- `settings.yaml`: Paths to alpine and k3s downloads, used by the Makefile.
