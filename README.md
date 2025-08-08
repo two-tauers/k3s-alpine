@@ -66,7 +66,7 @@ It will use the k3s config in [config/server-init.yaml](config/server-init.yaml)
 
 5. Prepare another SD card following steps 1-3, except in step 2, where the make command needs the agent config file: `make install path=/mnt/sd config=config/agent.yaml`
 
-    > NOTE: If you're adding another control plan, set `k3s.exec: server` in the config _without_ `k3s.config.cluster-init: true` and with IP and token of the existing server.
+    > NOTE: If you're adding another control plane, set `k3s.exec: server` in the config _without_ `k3s.config.cluster-init: true` and with IP and token of the existing server.
 
 6. The agent should join the cluster after booting.
 

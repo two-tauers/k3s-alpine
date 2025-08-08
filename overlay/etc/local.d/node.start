@@ -65,6 +65,7 @@ install_packages () {
 	apk add yq # required to read the config file
 	apk add mount # required to mount any drives defined in the config
 	apk add --no-cache grep=3.8-r1 # this version seems to work for the k3s install script (otherwise 'grep -P' is not a valid command)
+	apk add nfs-utils # required to mount NFS volumes
 
 	for index in $(yq ".packages | .[] | path | .[-1]" $CONFIG)
 	do
